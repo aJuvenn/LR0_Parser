@@ -442,6 +442,7 @@ void print_grammar(LRGrammar * g)
 	}
 }
 
+
 void print_mat(LRTransitionMatrix * mat)
 {
 	unsigned nbSymols = strlen(symbolIdToChar);
@@ -475,6 +476,7 @@ void print_mat(LRTransitionMatrix * mat)
 
 typedef struct LRStateTree
 {
+	unsigned rule;
 	unsigned symbol;
 
 	unsigned nbSons;
@@ -500,9 +502,14 @@ LRStateTree * lrStateTreeNew(unsigned maxNbSons)
 
 void lrStateTreePrintRec(LRStateTree * tree, unsigned indent)
 {
-	for (unsigned i = 0 ; i < indent ; i++){
-		printf("\t");
+	for (unsigned i = 0 ; i+1 < indent ; i++){
+		printf(" ");
 	}
+
+	if (indent != 0){
+		printf("-");
+	}
+
 
 	printf("%c", symbolIdToChar[tree->symbol]);
 	printf("\n");
@@ -519,11 +526,16 @@ void lrStateTreePrint(LRStateTree * tree)
 
 
 
+
 LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, unsigned nbSymbols, unsigned * symbols)
 {
-	LRStateTree * output;
+	LRStateTree * tmp;
+
 	unsigned stackSize = 0;
 	unsigned stack[1000];
+
+	unsigned treeStackSize = 0;
+	LRStateTree * treeStack[1000];
 
 	stack[stackSize++] = 0;
 
@@ -537,6 +549,12 @@ LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, unsigned 
 		if (action >= 0){
 			// shift
 			stack[stackSize++] = (unsigned) action;
+
+			tmp = lrStateTreeNew(0);
+			tmp->symbol = currentSymbol;
+			tmp->rule = -1;
+			treeStack[treeStackSize++] = tmp;
+
 			printf("[%c][%u] Shift %d : [ ",symbolIdToChar[currentSymbol], currentSate, action);
 			for (unsigned j = 0 ; j < stackSize ; j++){
 				printf("%u ", stack[j]);
@@ -552,21 +570,44 @@ LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, unsigned 
 
 		unsigned ruleSize = grammar->rightRuleSizes[action];
 
-
-
+		tmp = lrStateTreeNew(ruleSize);
+		tmp->nbSons = ruleSize;
+		for (unsigned j = 0 ; j < ruleSize ; j++){
+			tmp->sons[j] = treeStack[treeStackSize-ruleSize + j];
+		}
+		tmp->symbol = grammar->leftRules[action];
+		tmp->rule = action;
 
 		stackSize -= ruleSize;
+		treeStackSize -= ruleSize;
 		currentSate = stack[stackSize - 1];
 
 		unsigned new_state = lrTransitionMatrixGetNextStateId(transitions, currentSate, grammar->leftRules[action]);
 		stack[stackSize++] = new_state;
+		treeStack[treeStackSize++] = tmp;
 
 		for (unsigned j = 0 ; j < stackSize ; j++){
 			printf("%u ", stack[j]);
 		}
 
 		printf("]\n");
+
+
+		i--;
+
 	}
+
+	printf("Tree Stack Size : %u\n", treeStackSize);
+
+	LRStateTree * output = lrStateTreeNew(treeStackSize);
+
+	output->nbSons = treeStackSize;
+
+	for (unsigned i = 0 ; i < treeStackSize ; i++){
+		output->sons[i] = treeStack[i];
+	}
+
+	output->symbol = 0;
 
 	return output;
 }
@@ -617,7 +658,9 @@ int main(int argc, char **argv)
 
 	unsigned int len;
 	unsigned * str = strToRuleIds("0*1+0*1*1*0+0", &len);
-	f(g, &mat, len, str);
+	LRStateTree * t = f(g, &mat, len, str);
+
+	lrStateTreePrint(t);
 
 	return 0;
 }
