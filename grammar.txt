@@ -1,0 +1,19 @@
+# Token #
+
+var := [a-zA-Z_]([0-9a-zA-Z_]+)
+int := \-?([0-9]+)
+lbracket := \(
+rbracket := \)
+plus := \+
+times := \*
+
+# Grammar #
+
+EXPR -> EXPR plus EXPR
+EXPR -> EXPR times EXPR
+EXPR -> int
+EXPR -> var
+EXPR -> lbracket EXPR rbracket
+
+
+

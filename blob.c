@@ -22,6 +22,9 @@ typedef struct
 } LRGrammar;
 
 
+extern const char * symbolIdToChar;
+
+
 LRGrammar * lrGrammarNew(unsigned nbNonTerminal, unsigned nbTerminals, unsigned maxNbRules)
 {
 	LRGrammar * output = malloc(sizeof(LRGrammar));
@@ -58,6 +61,9 @@ typedef struct
 } LRNode;
 
 
+void print_node(const LRGrammar * const grammar, const LRNode * const n);
+
+
 static inline int isNonTerminal(const LRGrammar * const g, const unsigned symbol)
 {
 	return (symbol < g->nbNonTerminal);
@@ -75,20 +81,21 @@ int lrNodeDotedRuleIsIn(const LRNode * const node, const unsigned ruleId, const 
 }
 
 
-void lrNodeEmpty(LRNode * const node)
+LRNode * lrNodeNew()
 {
+	LRNode * node = malloc(sizeof(LRNode));
 	node->nbDotedRules = 0;
 	node->maxNbDotedRules = 0;
 	node->ruleIndexes = NULL;
 	node->dotIndexes = NULL;
+	return node;
 }
 
-void lrNodeDeallocate(LRNode * const node)
+void lrNodeFree(LRNode * node)
 {
 	free(node->dotIndexes);
 	free(node->ruleIndexes);
-	node->nbDotedRules = 0;
-	node->maxNbDotedRules = 0;
+	free(node);
 }
 
 
@@ -131,27 +138,27 @@ int lrNodeAreEquals(const LRNode * const node1, const LRNode * const node2)
 
 void lrNodeClose(const LRGrammar * const grammar, LRNode * const node)
 {
-	for (unsigned t = 0 ; t < 10 ; t++){
-		for (unsigned i = 0 ; i < node->nbDotedRules ; i++){
+	for (unsigned i = 0 ; i < node->nbDotedRules ; i++){
 
-			unsigned ruleId = node->ruleIndexes[i];
-			unsigned dotId = node->dotIndexes[i];
+		const unsigned ruleId = node->ruleIndexes[i];
+		const unsigned dotId = node->dotIndexes[i];
 
-			if (dotId == grammar->rightRuleSizes[ruleId]){
-				// TODO ?
-				continue;
-			}
+		if (dotId == grammar->rightRuleSizes[ruleId]){
+			/* Dot is not before a symbol */
+			continue;
+		}
 
-			unsigned nextChar = grammar->rightRules[ruleId][dotId];
+		unsigned nextSymbol = grammar->rightRules[ruleId][dotId];
 
-			if (!isNonTerminal(grammar, nextChar)){
-				continue;
-			}
+		if (!isNonTerminal(grammar, nextSymbol)){
+			/* Dot is not before a non terminal symbol */
+			continue;
+		}
 
-			for (unsigned j = 0 ; j < grammar->nbRules ; j++){
-				if (grammar->leftRules[j] == nextChar){
-					lrNodeAddDotedRule(node, j, 0);
-				}
+		for (unsigned j = 0 ; j < grammar->nbRules ; j++){
+			if (grammar->leftRules[j] == nextSymbol){
+				/* Adding symbol substitution rule if or already in the node */
+				lrNodeAddDotedRule(node, j, 0);
 			}
 		}
 	}
@@ -159,38 +166,44 @@ void lrNodeClose(const LRGrammar * const grammar, LRNode * const node)
 
 
 
-int lrNodeGetTransition(const LRGrammar * const grammar, const LRNode * const fromNode, const unsigned symbolId, LRNode * const toNode)
+
+
+
+LRNode * lrNodeGetTransition(const LRGrammar * const grammar, const LRNode * const fromNode, const unsigned symbolId)
 {
-	//int aRuleHasMatched = 0;
-	lrNodeEmpty(toNode);
+	LRNode * toNode = lrNodeNew();
 
 	for (unsigned i = 0 ; i < fromNode->nbDotedRules ; i++){
 
 		const unsigned ruleId = fromNode->ruleIndexes[i];
 		const unsigned dotId = fromNode->dotIndexes[i];
 
+		printf("fromNode->nbDotedRules: %u\n", fromNode->nbDotedRules);
+		printf("\truleId: %u\n", ruleId);
+		printf("\tdotId: %u\n", dotId);
+		printf("\tgrammar->rightRuleSizes[ruleId]: %u\n", grammar->rightRuleSizes[ruleId]);
+		printf("\tsymbol[grammar->rightRules[ruleId][dotId]]: %c\n", symbolIdToChar[grammar->rightRules[ruleId][dotId]]);
+		printf("\tsymbol[symbolId]: %c\n", symbolIdToChar[symbolId]);
+
+
+
 		if (dotId == grammar->rightRuleSizes[ruleId] || symbolId != grammar->rightRules[ruleId][dotId]){
+			printf("continue\n");
 			continue;
 		}
 
+		printf("Add\n");
 		/* fromNode contains a rule with a dot just before the symbol */
-
-#if 0
-		if (aRuleHasMatched){
-			/* Several rules match, grammar is ambiguous */
-			printf("Several rules\n");
-			return EXIT_FAILURE;
-		}
-#endif
-
-		//aRuleHasMatched = 1;
-
 		lrNodeAddDotedRule(toNode, ruleId, dotId + 1);
 	}
 
+	printf("Before closing: ");
+	print_node(grammar, toNode);
 	lrNodeClose(grammar, toNode);
+	printf("After closing: ");
+	print_node(grammar, toNode);
 
-	return EXIT_SUCCESS;
+	return toNode;
 }
 
 
@@ -199,7 +212,7 @@ typedef struct {
 	unsigned nbSymbols;
 	unsigned nbStates;
 	unsigned maxNbStates;
-	LRNode * stateNodes;
+	LRNode ** stateNodes;
 
 	unsigned * transitions;
 
@@ -211,7 +224,7 @@ int lrTransitionMatrixNodeIsIn(const LRTransitionMatrix * const transitionMatrix
 {
 	for (unsigned i = 0 ; i < transitionMatrix->nbStates ; i++){
 
-		if (lrNodeAreEquals(node, transitionMatrix->stateNodes + i)){
+		if (lrNodeAreEquals(node, transitionMatrix->stateNodes[i])){
 			return 1;
 		}
 	}
@@ -220,14 +233,15 @@ int lrTransitionMatrixNodeIsIn(const LRTransitionMatrix * const transitionMatrix
 }
 
 
-void lrTransitionMatrixAddNode(LRTransitionMatrix * const transitionMatrix, const LRNode * const node)
+void lrTransitionMatrixAddNode(LRTransitionMatrix * const transitionMatrix, LRNode * const node)
 {
 	if (transitionMatrix->nbStates == transitionMatrix->maxNbStates){
 		transitionMatrix->maxNbStates = 2 * transitionMatrix->maxNbStates + 1;
-		transitionMatrix->stateNodes = realloc(transitionMatrix->stateNodes, transitionMatrix->maxNbStates * sizeof(LRNode));
+		transitionMatrix->stateNodes = realloc(transitionMatrix->stateNodes, transitionMatrix->maxNbStates * sizeof(LRNode *));
 	}
 
-	transitionMatrix->stateNodes[transitionMatrix->nbStates++] = *node;
+	transitionMatrix->stateNodes[transitionMatrix->nbStates] = node;
+	transitionMatrix->nbStates++;
 }
 
 
@@ -241,6 +255,8 @@ void lrTransitionMatrixEmpty(LRTransitionMatrix * const transitionMatrix)
 }
 
 
+
+
 int lrTransitionMatrixFillStates(const LRGrammar * const grammar, LRTransitionMatrix * const transitionMatrix)
 {
 	const unsigned nbSymbols = grammar->nbNonTerminal + grammar->nbTerminals;
@@ -248,39 +264,43 @@ int lrTransitionMatrixFillStates(const LRGrammar * const grammar, LRTransitionMa
 	lrTransitionMatrixEmpty(transitionMatrix);
 	transitionMatrix->nbSymbols = nbSymbols;
 
-	LRNode initialNode;
-	lrNodeEmpty(&initialNode);
-	lrNodeAddDotedRule(&initialNode, 0, 0);
-	lrNodeClose(grammar, &initialNode);
+	LRNode * initialNode = lrNodeNew();
+	lrNodeAddDotedRule(initialNode, 0, 0);
+	lrNodeClose(grammar, initialNode);
+	lrTransitionMatrixAddNode(transitionMatrix, initialNode);
 
-	lrTransitionMatrixAddNode(transitionMatrix, &initialNode);
+	for (unsigned nodeId = 0 ; nodeId < transitionMatrix->nbStates ; nodeId++){
 
-	for (unsigned t = 0 ; t < 10 ; t++){
-		for (unsigned nodeId = 0 ; nodeId < transitionMatrix->nbStates ; nodeId++){
+		printf("nodeId : %u\n", nodeId);
+		printf("transitionMatrix->nbStates: %u\n", transitionMatrix->nbStates);
+		LRNode * fromNode = transitionMatrix->stateNodes[nodeId];
 
-			printf("transitionMatrix->nbStates: %u\n", transitionMatrix->nbStates);
-			LRNode * fromNode = transitionMatrix->stateNodes + nodeId;
+		printf("from node : ");
+		print_node(grammar, fromNode);
 
-			for (unsigned symbolId = 0 ; symbolId < nbSymbols ; symbolId++){
+		for (unsigned symbolId = 0 ; symbolId < nbSymbols ; symbolId++){
 
-				LRNode toNode;
+			printf("Symbol : %c\n", symbolIdToChar[symbolId]);
 
-				int ret = lrNodeGetTransition(grammar, fromNode, symbolId, &toNode);
+			LRNode * toNode = lrNodeGetTransition(grammar, fromNode, symbolId);
 
-				if (ret != EXIT_SUCCESS){
-					printf ("FFFFAIL\n");
-					return ret;
-				}
+			if (toNode == NULL){
+				printf ("FFFFAIL\n");
+				return EXIT_FAILURE;
+			}
 
-				if (lrTransitionMatrixNodeIsIn(transitionMatrix, &toNode)){
-					lrNodeDeallocate(&toNode);
-				} else {
-					lrTransitionMatrixAddNode(transitionMatrix, &toNode);
-				}
+			printf("to node : ");
+			print_node(grammar, toNode);
+
+			if (lrTransitionMatrixNodeIsIn(transitionMatrix, toNode)){
+				printf("\tNode already in\n");
+				lrNodeFree(toNode);
+			} else {
+				printf("\tNode added\n");
+				lrTransitionMatrixAddNode(transitionMatrix, toNode);
 			}
 		}
 	}
-
 
 	return EXIT_SUCCESS;
 }
@@ -289,7 +309,7 @@ int lrTransitionMatrixFillStates(const LRGrammar * const grammar, LRTransitionMa
 unsigned lrTransitionMatrixGetNodeId(const LRTransitionMatrix * const transitionMatrix, const LRNode * const node)
 {
 	for (unsigned i = 0 ; i < transitionMatrix->nbStates; i++){
-		if (lrNodeAreEquals(node, transitionMatrix->stateNodes + i)){
+		if (lrNodeAreEquals(node, transitionMatrix->stateNodes[i])){
 			return i;
 		}
 	}
@@ -307,20 +327,19 @@ int lrTransitionMatrixFillTransitions(const LRGrammar * const grammar, LRTransit
 
 	for (unsigned fromNodeId = 0 ; fromNodeId < nbStates ; fromNodeId++){
 
-		LRNode * fromNode = transitionMatrix->stateNodes + fromNodeId;
+		LRNode * fromNode = transitionMatrix->stateNodes[fromNodeId];
 
 		for (unsigned symbolId = 0 ; symbolId < nbSymbols ; symbolId++){
 
-			LRNode toNode;
-			int ret = lrNodeGetTransition(grammar, fromNode, symbolId, &toNode);
+			LRNode * toNode = lrNodeGetTransition(grammar, fromNode, symbolId);
 
-			if (ret != EXIT_SUCCESS){
+			if (toNode == NULL){
 				printf("FaaaaAAaAaaAAAAaail\n");
-				return ret;
+				return EXIT_FAILURE;
 			}
 
-			unsigned toNodeId = lrTransitionMatrixGetNodeId(transitionMatrix, &toNode);
-			lrNodeDeallocate(&toNode);
+			unsigned toNodeId = lrTransitionMatrixGetNodeId(transitionMatrix, toNode);
+			lrNodeFree(toNode);
 
 			if (toNodeId == (unsigned) -1){
 				printf("Faaaaaaaaail\n");
@@ -338,24 +357,28 @@ void lrTransitionMatrixFillReduce(const LRGrammar * const grammar, LRTransitionM
 {
 	for (unsigned i = 0 ; i < transitionMatrix->nbStates ; i++){
 
-		const LRNode * const node = transitionMatrix->stateNodes + i;
+		const LRNode * const node = transitionMatrix->stateNodes[i];
 		int fillState = 0;
 		unsigned ruleId;
-
+		unsigned savedRuleId;
 		for (unsigned j = 0 ; j < node->nbDotedRules ; j++){
 
 			ruleId = node->ruleIndexes[j];
 			const unsigned dotId = node->dotIndexes[j];
 
 			if (grammar->rightRuleSizes[ruleId] == dotId){
+
+				if (fillState){
+					printf("Warning ! Several reducing rules\n");
+				}
 				fillState = 1;
-				break;
+				savedRuleId = ruleId;
 			}
 		}
 
 		if (fillState){
 			for (unsigned j = grammar->nbNonTerminal ; j < transitionMatrix->nbSymbols ; j++){
-				transitionMatrix->transitions[j + transitionMatrix->nbSymbols * i] = -(ruleId + 1);
+				transitionMatrix->transitions[j + transitionMatrix->nbSymbols * i] = -(savedRuleId + 1);
 			}
 		}
 	}
@@ -392,9 +415,6 @@ int lrTransitionMatrixFromGrammar(const LRGrammar * const grammar, LRTransitionM
 	return EXIT_SUCCESS;
 }
 
-//static const char * symbolIdToChar = "EFN+*01()";
-static const char * symbolIdToChar = "EB01+*";
-//static const char * symbolIdToChar = "SEB01+*$";
 
 
 unsigned charToRuleId(char c)
@@ -429,6 +449,17 @@ void addStrRule(LRGrammar * g, char left, char * right)
 }
 
 
+void print_rule(LRGrammar * g, unsigned i)
+{
+	printf("[%u]\t%c->", i, symbolIdToChar[g->leftRules[i]]);
+
+	for (unsigned j = 0 ; j < g->rightRuleSizes[i] ; j++){
+		printf("%c", symbolIdToChar[g->rightRules[i][j]]);
+	}
+
+	printf("\n");
+}
+
 void print_grammar(LRGrammar * g)
 {
 	for (unsigned i = 0 ; i < g->nbRules ; i++){
@@ -440,6 +471,20 @@ void print_grammar(LRGrammar * g)
 
 		printf("\n");
 	}
+}
+
+
+unsigned nbNonTerminal(LRGrammar * g, unsigned ruleId)
+{
+	unsigned output = 0;
+
+	for (unsigned i = 0 ; i < g->rightRuleSizes[ruleId] ; i++){
+		if (isNonTerminal(g, g->rightRules[ruleId][i])){
+			output++;
+		}
+	}
+
+	return output;
 }
 
 
@@ -471,13 +516,40 @@ void print_mat(LRTransitionMatrix * mat)
 	}
 }
 
+void print_node(const LRGrammar * const grammar, const LRNode * const node)
+{
+	printf("Node{\n");
+	for (unsigned i = 0 ; i < node->nbDotedRules ; i++){
+
+		const unsigned ruleId = node->ruleIndexes[i];
+		const unsigned dotId = node->dotIndexes[i];
+
+		printf("\t%c->", symbolIdToChar[grammar->leftRules[ruleId]]);
+
+		for (unsigned j = 0 ; j < dotId ; j++){
+			printf("%c", symbolIdToChar[grammar->rightRules[ruleId][j]]);
+		}
+
+		printf(".");
+
+		for (unsigned j = dotId ; j < grammar->rightRuleSizes[ruleId]  ; j++){
+			printf("%c", symbolIdToChar[grammar->rightRules[ruleId][j]]);
+		}
+
+		printf("\n");
+	}
+	printf("}\n");
+}
+
 
 
 
 typedef struct LRStateTree
 {
 	unsigned rule;
+
 	unsigned symbol;
+	unsigned symbolStreamIndex;
 
 	unsigned nbSons;
 	struct LRStateTree ** sons;
@@ -500,28 +572,43 @@ LRStateTree * lrStateTreeNew(unsigned maxNbSons)
 	return output;
 }
 
-void lrStateTreePrintRec(LRStateTree * tree, unsigned indent)
+void lrStateTreePrintRec(LRStateTree * tree, unsigned indent, LRGrammar * g)
 {
-	for (unsigned i = 0 ; i+1 < indent ; i++){
-		printf(" ");
-	}
-
-	if (indent != 0){
-		printf("-");
+	for (unsigned i = 0 ; i < indent ; i++){
+		printf("\t");
 	}
 
 
-	printf("%c", symbolIdToChar[tree->symbol]);
+	unsigned i = tree->rule;
+
+	if (i == (unsigned) -1){
+		printf("Symbol %c at index %u\n", symbolIdToChar[tree->symbol], tree->symbolStreamIndex);
+		return;
+	}
+
+	printf("%c->", symbolIdToChar[g->leftRules[i]]);
+
+	for (unsigned j = 0 ; j < g->rightRuleSizes[i] ; j++){
+		printf("%c", symbolIdToChar[g->rightRules[i][j]]);
+	}
+
 	printf("\n");
 
+
 	for (unsigned i = 0 ; i < tree->nbSons ; i++){
-		lrStateTreePrintRec(tree->sons[i], indent + 1);
+		for (unsigned j = 0 ; j < indent+1 ; j++){
+			printf("\t");
+		}
+
+		printf("[%u]\n", i);
+
+		lrStateTreePrintRec(tree->sons[i], indent + 1, g);
 	}
 }
 
-void lrStateTreePrint(LRStateTree * tree)
+void lrStateTreePrint(LRStateTree * tree , LRGrammar * g)
 {
-	lrStateTreePrintRec(tree, 0);
+	lrStateTreePrintRec(tree, 0, g);
 }
 
 
@@ -529,6 +616,7 @@ void lrStateTreePrint(LRStateTree * tree)
 
 LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, unsigned nbSymbols, unsigned * symbols)
 {
+
 	LRStateTree * tmp;
 
 	unsigned stackSize = 0;
@@ -539,36 +627,42 @@ LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, unsigned 
 
 	stack[stackSize++] = 0;
 
-	for (unsigned i = 0 ; i < nbSymbols ; i++){
+	unsigned i = 0;
+
+	while (i < nbSymbols){
 
 		unsigned currentSymbol = symbols[i];
 		unsigned currentSate = stack[stackSize - 1];
+		printf("----------------------------\n");
+		printf("Current state: %u, current symbol: %c\n", currentSate, symbolIdToChar[currentSymbol]);
 
 		int action = (int) lrTransitionMatrixGetNextStateId(transitions, currentSate, currentSymbol);
 
 		if (action >= 0){
 			// shift
 			stack[stackSize++] = (unsigned) action;
+			printf("Shift %d\n", action);
 
 			tmp = lrStateTreeNew(0);
+			tmp->rule = (unsigned) -1;
 			tmp->symbol = currentSymbol;
-			tmp->rule = -1;
+			tmp->symbolStreamIndex = i;
+
 			treeStack[treeStackSize++] = tmp;
 
-			printf("[%c][%u] Shift %d : [ ",symbolIdToChar[currentSymbol], currentSate, action);
-			for (unsigned j = 0 ; j < stackSize ; j++){
-				printf("%u ", stack[j]);
-			}
-			printf("]\n");
+			i++;
 			continue;
 		}
 
 		// reduce
 		action = -(action + 1);
 
-		printf("[%c][%u] Reduce %d : [ ", symbolIdToChar[currentSymbol], currentSate, action);
+		//printf("[%c][%u] Reduce %d : [ ", symbolIdToChar[currentSymbol], currentSate, action);
+		printf("Reducing rule ");
+		print_rule(grammar, action);
 
 		unsigned ruleSize = grammar->rightRuleSizes[action];
+		//unsigned nbNonTerm = nbNonTerminal(grammar, action);
 
 		tmp = lrStateTreeNew(ruleSize);
 		tmp->nbSons = ruleSize;
@@ -584,22 +678,27 @@ LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, unsigned 
 
 		unsigned new_state = lrTransitionMatrixGetNextStateId(transitions, currentSate, grammar->leftRules[action]);
 		stack[stackSize++] = new_state;
+		printf("Pusing tree...\n");
+		lrStateTreePrint(tmp, grammar);
+
 		treeStack[treeStackSize++] = tmp;
 
+		/*
 		for (unsigned j = 0 ; j < stackSize ; j++){
 			printf("%u ", stack[j]);
 		}
 
 		printf("]\n");
-
-
-		i--;
-
+		 */
 	}
-
+	printf("----------------------------\n");
+	printf("----------------------------\n");
 	printf("Tree Stack Size : %u\n", treeStackSize);
-
+	printf("----------------------------\n");
+	printf("----------------------------\n");
+	/*
 	LRStateTree * output = lrStateTreeNew(treeStackSize);
+	addStrRule(g, 'E', "0");
 
 	output->nbSons = treeStackSize;
 
@@ -608,38 +707,35 @@ LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, unsigned 
 	}
 
 	output->symbol = 0;
+	 */
 
-	return output;
+	return treeStack[0];
 }
+
+
+const char * symbolIdToChar ="SEAL01fvie()$";
+
+
 
 int main(int argc, char **argv)
 {
-	const unsigned nbNonTerminal = 2;
-	const unsigned nbTerminals = 4;
+	const unsigned nbNonTerminal = 4;
+	const unsigned nbTerminals = 9;
 
 	LRGrammar * g = lrGrammarNew(nbNonTerminal, nbTerminals, 100);
 
-	/*
-	addStrRule(g, 'E', "E+F");
-	addStrRule(g, 'E', "F");
 
-	addStrRule(g, 'F', "F*N");
-	addStrRule(g, 'F', "N");
-
-	addStrRule(g, 'N', "0");
-	addStrRule(g, 'N', "1");
-	addStrRule(g, 'N', "(E)");
-	 */
-
-	//addStrRule(g, 'S', "E$");
-	addStrRule(g, 'E', "E*B");
-	addStrRule(g, 'E', "E+B");
-	addStrRule(g, 'E', "B");
-
-	addStrRule(g, 'B', "0");
-	addStrRule(g, 'B', "1");
-
-
+	addStrRule(g, 'S', "E$");
+	addStrRule(g, 'E', "f(A)E");
+	addStrRule(g, 'A', "v");
+	addStrRule(g, 'A', "Av");
+	addStrRule(g, 'E', "(L)");
+	addStrRule(g, 'L', "E");
+	addStrRule(g, 'L', "LE");
+	addStrRule(g, 'E', "v");
+	addStrRule(g, 'E', "1");
+	addStrRule(g, 'E', "0");
+	addStrRule(g, 'E', "iEEeE");
 
 	printf("Creating table...\n");
 
@@ -648,19 +744,30 @@ int main(int argc, char **argv)
 
 	if (ret != EXIT_SUCCESS){
 		printf("FAIL.\n");
-	} else {
-		printf("Done.\n");
-		print_grammar(g);
-		print_mat(&mat);
+		exit(EXIT_FAILURE);
 	}
 
+	printf("Done.\n");
+	print_grammar(g);
+	print_mat(&mat);
+	printf("\n\n");
+
+	printf("States\n");
+
+	for (unsigned i = 0 ; i < mat.nbStates ; i++){
+		printf("[%u] ", i);
+		print_node(g, mat.stateNodes[i]);
+		printf("\n--------------------------------\n");
+	}
 	printf("\n\n");
 
 	unsigned int len;
-	unsigned * str = strToRuleIds("0*1+0*1*1*0+0", &len);
+	char * strrr = "f(v)i(v01)(vv)e(v1)$";
+	printf("Analyzing %s\n", strrr);
+	unsigned * str = strToRuleIds(strrr, &len);
 	LRStateTree * t = f(g, &mat, len, str);
 
-	lrStateTreePrint(t);
+	lrStateTreePrint(t, g);
 
 	return 0;
 }
