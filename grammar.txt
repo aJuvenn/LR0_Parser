@@ -1,19 +1,56 @@
-# Token #
+# Token List #
 
-var := [a-zA-Z_]([0-9a-zA-Z_]+)
-int := \-?([0-9]+)
-lbracket := \(
-rbracket := \)
-plus := \+
-times := \*
+fun=fun
+if=if
+else=else
+let=let
+in=in
+op=...
+int=\-?([0-9]+)
+var=...
+(=\(
+)=\)
+[=\[
+]=\]
+;=;
+eof=eof
 
-# Grammar #
+# Grammar Rules #
 
-EXPR -> EXPR plus EXPR
-EXPR -> EXPR times EXPR
-EXPR -> int
-EXPR -> var
-EXPR -> lbracket EXPR rbracket
+START= ILIST eof
 
+ILIST= ILIST INSTR
+ILIST= INSTR
 
+INSTR= LET
+INSTR= EXPR
 
+LET= let var EXPR ;
+
+EXPR= var
+EXPR= int
+EXPR= FUN
+EXPR= CALL
+EXPR= LCALL
+EXPR= OPCALL
+EXPR= LOPCALL
+EXPR= IFELSE
+EXPR= LETIN
+
+FUN= fun ( VLIST ) EXPR
+FUN= fun [ VLIST ] EXPR
+
+VLIST= VLIST var
+VLIST= var
+
+CALL= ( ELIST )
+LCALL= [ ELIST ]
+OPCALL= ( op ELIST )
+LOPCALL= [ op ELIST ]
+
+ELIST= ELIST EXPR
+ELIST= EXPR
+
+IFELSE= if EXPR EXPR else EXPR
+
+LETIN= let var EXPR in EXPR

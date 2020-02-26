@@ -10,8 +10,8 @@
 #include <string.h>
 #include <regex.h>
 
-#define MAX_NB_LINES 1024
 
+#include "parse_config.h"
 
 char * loadFile(const char * const path)
 {
@@ -22,9 +22,9 @@ char * loadFile(const char * const path)
 	f = fopen(path, "r");
 	fseek(f, 0, SEEK_END);
 	fileLength = ftell(f);
-	output = malloc(fileLength);
+	output = malloc(fileLength+1);
 	rewind(f);
-	fread(output, fileLength + 1, 1, f);
+	fread(output, fileLength, 1, f);
 	fclose(f);
 
 	output[fileLength] = '\0';
@@ -33,7 +33,28 @@ char * loadFile(const char * const path)
 }
 
 
-int splitLines(const char * const buffer, unsigned * out_nbTokenLines, char *** out_tokenLines, unsigned * out_nbGrammarLines, char *** out_grammarLines)
+
+int split(char * buffer, const char * const sep, unsigned * out_nbParts, char *** out_parts)
+{
+	unsigned nbParts = 0;
+	char ** parts = malloc(MAX_NB_LINES * sizeof(char *));
+
+	if (parts == NULL){
+		return EXIT_FAILURE;
+	}
+
+	for (char * part = strtok(buffer, sep) ; part != NULL ; part = strtok(NULL, sep)){
+		parts[nbParts++] = part;
+	}
+
+	*out_nbParts = nbParts;
+	*out_parts = parts;
+
+	return EXIT_SUCCESS;
+}
+
+
+int splitLines(char * buffer, unsigned * out_nbTokenLines, char *** out_tokenLines, unsigned * out_nbGrammarLines, char *** out_grammarLines)
 {
 	unsigned nbTokenLines = 0;
 	char ** tokenLines = malloc(MAX_NB_LINES * sizeof(char *));
@@ -112,19 +133,6 @@ void separateLeftRight(unsigned nbLines, char ** lines, char * sep, char *** out
 	*out_rights = rights;
 }
 
-typedef struct
-{
-	unsigned nbTokens;
-	char ** tokenNames;
-	char ** tokenRegexp;
-
-	unsigned nbGrammarRules;
-	char ** ruleLeftMembers;
-	unsigned * ruleRightMemberSizes;
-	char *** ruleRightMembers;
-
-} GrammarDescription;
-
 
 
 
@@ -149,69 +157,61 @@ GrammarDescription * parseConfigFile(const char * const path)
 
 	char ** leftTokens;
 	char ** rightTokens;
-	separateLeftRight(nbTokenLines, tokenLines, " := ", &leftTokens, &rightTokens);
+	separateLeftRight(nbTokenLines, tokenLines, "=", &leftTokens, &rightTokens);
 
 	char ** leftRules;
 	char ** rightRules;
-	separateLeftRight(nbGrammarLines, grammarLines, " -> ", &leftRules, &rightRules);
+	separateLeftRight(nbGrammarLines, grammarLines, "=", &leftRules, &rightRules);
+
+	output->nbTokens = nbTokenLines;
+	output->tokenNames = leftTokens;
+	output->tokenRegexp = rightTokens;
+
+	output->nbGrammarRules = nbGrammarLines;
+
+	output->ruleLeftMembers = leftRules;
+
+	output->ruleRightMembers = malloc(nbGrammarLines * sizeof(char **));
+	output->ruleRightMemberSizes = malloc(nbGrammarLines * sizeof(unsigned));
 
 
-	/*
-	 * TODO
-	 *
-	 */
+	for (unsigned i = 0 ; i < nbGrammarLines ; i++){
 
+		unsigned rightRuleSize;
+		char ** rightRule;
+		split(rightRules[i], " ", &rightRuleSize, &rightRule);
 
+		output->ruleRightMemberSizes[i] = rightRuleSize;
+		output->ruleRightMembers[i] = rightRule;
+	}
 
 	return output;
 }
 
 
-int main(int argc, char **argv)
+void printConfigFile(GrammarDescription * descr)
 {
-	char * buff = loadFile("grammar.txt");
-	printf("%s", buff);
+	printf("# Tokens #\n");
 
-
-	unsigned nbTokenLines;
-	char ** tokenLines;
-
-	unsigned nbGrammarLines;
-	char ** grammarLines;
-
-	splitLines(buff, &nbTokenLines, &tokenLines, &nbGrammarLines, &grammarLines);
-
-
-	printf("TOKEN LINES [%u]\n", nbTokenLines);
-
-	for (unsigned i = 0 ; i < nbTokenLines ; i++){
-		printf("%s\n", tokenLines[i]);
+	for (unsigned i = 0 ; i < descr->nbTokens ; i++){
+		printf("[%u]\n", i);
+		printf("\tName : '%s'\n", descr->tokenNames[i]);
+		printf("\tRegexp : '%s' \n", descr->tokenRegexp[i]);
 	}
 
-	printf("GRAMMAR LINES [%u]\n", nbGrammarLines);
+	printf("# Grammar Rules #\n");
 
+	for (unsigned i = 0 ; i < descr->nbGrammarRules ; i++){
 
-	for (unsigned i = 0 ; i < nbGrammarLines ; i++){
-		printf("%s\n", grammarLines[i]);
+		printf("[%u]\n", i);
+		printf("\tLeft : '%s'\n", descr->ruleLeftMembers[i]);
+		printf("\tSubstitution (%u terms): ", descr->ruleRightMemberSizes[i]);
+
+		for (unsigned j = 0 ; j < descr->ruleRightMemberSizes[i] ; j++){
+			printf("'%s' ", descr->ruleRightMembers[i][j]);
+		}
+
+		printf("\n");
 	}
-
-	char ** leftTokens;
-	char ** rightTokens;
-	separateLeftRight(nbTokenLines, tokenLines, " := ", &leftTokens, &rightTokens);
-
-	for (unsigned i = 0 ; i < nbTokenLines ; i++){
-		printf("%s, ", leftTokens[i]);
-	}
-
-	printf("\n");
-
-	for (unsigned i = 0 ; i < nbTokenLines ; i++){
-		printf("%s, ", rightTokens[i]);
-	}
-
-	printf("\n");
-
-
-	free(buff);
-	return 0;
 }
+
