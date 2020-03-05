@@ -115,8 +115,6 @@ void separate(char * line, char * sep, char ** out_left, char ** out_right)
 
 	*out_left = left;
 	*out_right = right;
-
-	(void) (strtok(NULL, sep) == NULL);
 }
 
 

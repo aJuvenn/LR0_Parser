@@ -9,24 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "parse_config.h"
-
-typedef struct
-{
-	unsigned nbNonTerminal;
-	unsigned nbTerminals;
-
-	unsigned nbSymbols;
-	char ** symbolNames;
-
-	unsigned nbRules;
-	unsigned * leftRules;
-	unsigned * rightRuleSizes;
-	unsigned ** rightRules;
-
-} LRGrammar;
-
-
+#include "grammar.h"
 
 
 LRGrammar * lrGrammarNew(unsigned nbNonTerminals, unsigned nbTerminals, unsigned maxNbRules)
@@ -143,17 +126,6 @@ LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
 }
 
 
-
-
-
-typedef struct
-{
-	unsigned nbDotedRules;
-	unsigned maxNbDotedRules;
-	unsigned * ruleIndexes;
-	unsigned * dotIndexes;
-
-} LRNode;
 
 
 
@@ -294,16 +266,6 @@ LRNode * lrNodeGetTransition(const LRGrammar * const grammar, const LRNode * con
 }
 
 
-typedef struct {
-
-	unsigned nbSymbols;
-	unsigned nbStates;
-	unsigned maxNbStates;
-	LRNode ** stateNodes;
-
-	unsigned * transitions;
-
-} LRTransitionMatrix;
 
 
 
@@ -463,28 +425,29 @@ unsigned lrTransitionMatrixGetNextStateId(const LRTransitionMatrix * const trans
 }
 
 
-int lrTransitionMatrixFromGrammar(const LRGrammar * const grammar, LRTransitionMatrix * const transitionMatrix)
+LRTransitionMatrix * lrTransitionMatrixFromGrammar(const LRGrammar * const grammar)
 {
 	int ret;
+	LRTransitionMatrix * transitionMatrix = malloc(sizeof(LRTransitionMatrix));
 
 	lrTransitionMatrixEmpty(transitionMatrix);
 	ret = lrTransitionMatrixFillStates(grammar, transitionMatrix);
 
 	if (ret != EXIT_SUCCESS){
 		printf("fill fail\n");
-		return ret;
+		return NULL;
 	}
 
 	ret = lrTransitionMatrixFillTransitions(grammar, transitionMatrix);
 
 	if (ret != EXIT_SUCCESS){
 		printf("transition fail\n");
-		return ret;
+		return NULL;
 	}
 
 	lrTransitionMatrixFillReduce(grammar, transitionMatrix);
 
-	return EXIT_SUCCESS;
+	return transitionMatrix;
 }
 
 
@@ -566,7 +529,7 @@ void print_node(const LRGrammar * const grammar, const LRNode * const node)
 
 		printf(".");
 
-		for (unsigned j = dotId ; j < grammar->rightRuleSizes[ruleId]  ; j++){
+		for (unsigned j = dotId ; j < grammar->rightRuleSizes[ruleId] ; j++){
 			printf("%s ", grammar->symbolNames[grammar->rightRules[ruleId][j]]);
 		}
 
@@ -576,19 +539,6 @@ void print_node(const LRGrammar * const grammar, const LRNode * const node)
 }
 
 
-
-
-typedef struct LRStateTree
-{
-	unsigned rule;
-
-	unsigned symbol;
-	unsigned symbolStreamIndex;
-
-	unsigned nbSons;
-	struct LRStateTree ** sons;
-
-} LRStateTree;
 
 
 LRStateTree * lrStateTreeNew(unsigned maxNbSons)
@@ -808,23 +758,22 @@ int main(int argc, char **argv)
 
 	printf("Done.\n\nCreating table...\n");
 
-	LRTransitionMatrix mat;
-	int ret = lrTransitionMatrixFromGrammar(gr, &mat);
+	LRTransitionMatrix *  mat = lrTransitionMatrixFromGrammar(gr);
 
-	if (ret != EXIT_SUCCESS){
+	if (mat == NULL){
 		printf("FAIL.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	printf("Done.\n\nPrinting table...\n");
 
-	print_mat(&mat, gr);
+	print_mat(mat, gr);
 
 	printf("Done.\n\n Printing states...\n");
 
-	for (unsigned i = 0 ; i < mat.nbStates ; i++){
+	for (unsigned i = 0 ; i < mat->nbStates ; i++){
 		printf("[%u] ", i);
-		print_node(gr, mat.stateNodes[i]);
+		print_node(gr, mat->stateNodes[i]);
 		printf("\n--------------------------------\n");
 	}
 
@@ -832,7 +781,7 @@ int main(int argc, char **argv)
 
 	printf("Done.\n\nCreating tree from string %s..\n", str);
 
-	LRStateTree * tree = f(gr, &mat, str);
+	LRStateTree * tree = f(gr, mat, str);
 
 	printf("Done. Printing tree...\n");
 
