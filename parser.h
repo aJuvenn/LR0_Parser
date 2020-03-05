@@ -20,11 +20,9 @@ typedef struct {
 	LRGrammar * grammar;
 	LRTransitionMatrix * transition;
 
-	char * cursor;
-
 } LRParser;
 
-
+/*
 typedef struct LRParseTree
 {
 	int isLeaf;
@@ -45,14 +43,14 @@ typedef struct LRParseTree
 	};
 
 } LRParseTree;
-
+*/
 
 
 LRParser * lrParserNew(const char * const configFilePath);
 
-LRParseTree * lrParserParseStr(LRParser * parser, const char * const str);
+LRStateTree * lrParserParseStr(LRParser * parser, const char * const str);
 
-LRParseTree * lrParserParseFile(LRParser * parser, const char * const filePath);
+LRStateTree * lrParserParseFile(LRParser * parser, const char * const filePath);
 
 
 

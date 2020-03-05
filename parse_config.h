@@ -30,6 +30,6 @@ GrammarDescription * parseConfigFile(const char * const path);
 void printConfigFile(GrammarDescription * descr);
 
 int split(char * buffer, const char * const sep, unsigned * out_nbParts, char *** out_parts);
-
+char * loadFile(const char * const path);
 
 #endif /* PARSE_CONFIG_H_ */

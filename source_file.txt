@@ -1,0 +1,15 @@
+let cons
+	fun (x y f)
+		[f x y];
+		
+let fst
+	fun (c)
+		(c (fun (x y) x));
+		
+let snd
+	fun (c)
+		(c (fun (x y) y));
+		
+		
+		
+eof

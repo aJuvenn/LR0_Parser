@@ -25,6 +25,7 @@ typedef struct
 
 } LRGrammar;
 
+LRGrammar * lrGrammarFromDescr(GrammarDescription * descr);
 
 typedef struct
 {
@@ -50,20 +51,26 @@ typedef struct {
 
 LRTransitionMatrix * lrTransitionMatrixFromGrammar(const LRGrammar * const grammar);
 
+unsigned lrTransitionMatrixGetNextStateId(const LRTransitionMatrix * const transitionMatrix, const unsigned stateId, const unsigned symbolId);
+
 
 typedef struct LRStateTree
 {
 	unsigned rule;
 
-	unsigned symbol;
-	unsigned symbolStreamIndex;
+	unsigned symbolId;
+	char * symbolData;
 
 	unsigned nbSons;
 	struct LRStateTree ** sons;
 
 } LRStateTree;
 
+LRStateTree * lrStateTreeNew(unsigned maxNbSons);
 
+void lrStateTreePrint(LRStateTree * tree , LRGrammar * g);
+
+void print_rule(LRGrammar * g, unsigned i);
 
 
 #endif /* GRAMMAR_H_ */

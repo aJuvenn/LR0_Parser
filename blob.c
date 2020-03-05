@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "grammar.h"
+#include "parser.h"
 
 
 LRGrammar * lrGrammarNew(unsigned nbNonTerminals, unsigned nbTerminals, unsigned maxNbRules)
@@ -562,11 +563,10 @@ void lrStateTreePrintRec(LRStateTree * tree, unsigned indent, LRGrammar * g)
 		printf("\t");
 	}
 
-
 	unsigned i = tree->rule;
 
 	if (i == (unsigned) -1){
-		printf("%s at index %u\n", g->symbolNames[tree->symbol], tree->symbolStreamIndex);
+		printf("%s\n", tree->symbolData);
 		return;
 	}
 
@@ -607,136 +607,12 @@ unsigned lrGrammarStrToSymbolId(LRGrammar * g, char * str)
 	return -1;
 }
 
-LRStateTree * f(LRGrammar * grammar, LRTransitionMatrix * transitions, char * str)
-{
-	unsigned nbSymbols;
-	char ** strSymbols;
-
-	split(str, " ", &nbSymbols, &strSymbols);
-
-	unsigned symbols[nbSymbols];
-
-	for (unsigned i = 0 ; i < nbSymbols ; i++){
-		symbols[i] = lrGrammarStrToSymbolId(grammar, strSymbols[i]);
-
-		if (symbols[i] == -1){
-			fprintf(stderr, "Unknown symbol %s\n", strSymbols[i]);
-			return NULL;
-		}
-	}
-
-	LRStateTree * tmp;
-
-	unsigned stackSize = 0;
-	unsigned stack[1000];
-
-	unsigned treeStackSize = 0;
-	LRStateTree * treeStack[1000];
-
-	stack[stackSize++] = 0;
-
-	unsigned i = 0;
-
-	while (i < nbSymbols){
-
-		unsigned currentSymbol = symbols[i];
-		unsigned currentSate = stack[stackSize - 1];
-		printf("----------------------------\n");
-		printf("Current state: %u, current symbol: %s\n", currentSate, grammar->symbolNames[currentSymbol]);
-
-		int action = (int) lrTransitionMatrixGetNextStateId(transitions, currentSate, currentSymbol);
-
-		if (action >= 0){
-			// shift
-			stack[stackSize++] = (unsigned) action;
-			printf("Shift %d\n", action);
-
-			tmp = lrStateTreeNew(0);
-			tmp->rule = (unsigned) -1;
-			tmp->symbol = currentSymbol;
-			tmp->symbolStreamIndex = i;
-
-			treeStack[treeStackSize++] = tmp;
-
-			i++;
-			continue;
-		}
-
-		// reduce
-		action = -(action + 1);
-
-		//printf("[%c][%u] Reduce %d : [ ", symbolIdToChar[currentSymbol], currentSate, action);
-		printf("Reducing rule ");
-		print_rule(grammar, action);
-
-		unsigned ruleSize = grammar->rightRuleSizes[action];
-		//unsigned nbNonTerm = nbNonTerminal(grammar, action);
-
-		tmp = lrStateTreeNew(ruleSize);
-		tmp->nbSons = ruleSize;
-		for (unsigned j = 0 ; j < ruleSize ; j++){
-			tmp->sons[j] = treeStack[treeStackSize-ruleSize + j];
-		}
-		tmp->symbol = grammar->leftRules[action];
-		tmp->rule = action;
-
-		stackSize -= ruleSize;
-		treeStackSize -= ruleSize;
-		currentSate = stack[stackSize - 1];
-
-		unsigned new_state = lrTransitionMatrixGetNextStateId(transitions, currentSate, grammar->leftRules[action]);
-		stack[stackSize++] = new_state;
-		printf("Pusing tree...\n");
-		lrStateTreePrint(tmp, grammar);
-
-		treeStack[treeStackSize++] = tmp;
-
-		/*
-		for (unsigned j = 0 ; j < stackSize ; j++){
-			printf("%u ", stack[j]);
-		}
-
-		printf("]\n");
-		 */
-	}
-	printf("----------------------------\n");
-	printf("----------------------------\n");
-	printf("Tree Stack Size : %u\n", treeStackSize);
-
-	for (unsigned i = 0 ; i < treeStackSize ; i++){
-		printf("[tree %u]\n", i);
-		lrStateTreePrint(treeStack[i], grammar);
-		printf("\n");
-	}
-
-	printf("----------------------------\n");
-	printf("----------------------------\n");
-	/*
-	LRStateTree * output = lrStateTreeNew(treeStackSize);
-	addStrRule(g, 'E', "0");
-
-	output->nbSons = treeStackSize;
-
-	for (unsigned i = 0 ; i < treeStackSize ; i++){
-		output->sons[i] = treeStack[i];
-	}
-
-	output->symbol = 0;
-	 */
-
-	return treeStack[0];
-}
 
 
 
 
 
-
-
-
-
-
-
+#if 0
 int main(int argc, char **argv)
 {
 	char * path = "grammar.txt";
@@ -791,7 +667,35 @@ int main(int argc, char **argv)
 
 	return 0;
 }
+#else
 
+int main(int argc, char **argv)
+{
+	char * configPath = "grammar.txt";
+
+	LRParser * parser = lrParserNew(configPath);
+
+	if (parser == NULL){
+		fprintf(stderr, "Couldn't load parser\n");
+		exit(EXIT_FAILURE);
+	}
+
+	LRStateTree * tree = lrParserParseFile(parser, "source_file.txt");
+
+	if (tree == NULL){
+		fprintf(stderr, "Couldn't parse file\n");
+		exit(EXIT_FAILURE);
+	}
+
+	lrStateTreePrint(tree, parser->grammar);
+
+	return 0;
+}
+
+
+
+
+#endif
 
 
 
