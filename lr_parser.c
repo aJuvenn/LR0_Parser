@@ -6,11 +6,12 @@
  */
 
 #include <stdlib.h>
-#include "parser.h"
 #include "parse_config.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include "lr_parser.h"
+
 
 LRParser * lrParserNew(const char * const configFilePath)
 {
@@ -195,18 +196,18 @@ int lrParserNextToken(LRParser * parser, const char ** cursor, unsigned * out__t
 }
 
 
-LRStateTree * lrParserParseStr(LRParser * const parser, const char * const str)
+LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 {
 	LRGrammar * grammar = parser->grammar;
 	LRTransitionMatrix * transitions = parser->transition;
 
-	LRStateTree * tmp;
+	LRParseTree * tmp;
 
 	unsigned stackSize = 0;
 	unsigned stack[1000];
 
 	unsigned treeStackSize = 0;
-	LRStateTree * treeStack[1000];
+	LRParseTree * treeStack[1000];
 
 	stack[stackSize++] = 0;
 
@@ -237,10 +238,9 @@ LRStateTree * lrParserParseStr(LRParser * const parser, const char * const str)
 			stack[stackSize++] = (unsigned) action;
 			printf("Shift %d\n", action);
 
-			tmp = lrStateTreeNew(0);
-			tmp->rule = (unsigned) -1;
-			tmp->symbolId = currentTokenId;
-			tmp->symbolData = currentTokenData;
+			tmp = lrParseTreeNew(0);
+			tmp->leaf.tokenId = currentTokenId;
+			tmp->leaf.tokenData = currentTokenData;
 
 			treeStack[treeStackSize++] = tmp;
 
@@ -259,19 +259,20 @@ LRStateTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 		//printf("[%c][%u] Reduce %d : [ ", symbolIdToChar[currentSymbol], currentSate, action);
 		printf("Reducing rule ");
-		print_rule(grammar, action);
+		lrGrammarPrintRule(grammar, action);
 
 		unsigned ruleSize = grammar->rightRuleSizes[action];
 		//unsigned nbNonTerm = nbNonTerminal(grammar, action);
 
-		tmp = lrStateTreeNew(ruleSize);
-		tmp->nbSons = ruleSize;
+		tmp = lrParseTreeNew(ruleSize);
+		tmp->isLeaf = 0;
+		tmp->node.nbSons = ruleSize;
 		for (unsigned j = 0 ; j < ruleSize ; j++){
-			tmp->sons[j] = treeStack[treeStackSize-ruleSize + j];
+			tmp->node.sons[j] = treeStack[treeStackSize-ruleSize + j];
 		}
-		tmp->symbolId = grammar->leftRules[action];
-		tmp->symbolData = NULL;
-		tmp->rule = action;
+
+		tmp->node.nonTerminalId = grammar->leftRules[action];
+		tmp->node.ruleId = action;
 
 		stackSize -= ruleSize;
 		treeStackSize -= ruleSize;
@@ -280,7 +281,7 @@ LRStateTree * lrParserParseStr(LRParser * const parser, const char * const str)
 		unsigned new_state = lrTransitionMatrixGetNextStateId(transitions, currentSate, grammar->leftRules[action]);
 		stack[stackSize++] = new_state;
 		printf("Pusing tree...\n");
-		lrStateTreePrint(tmp, grammar);
+		lrParseTreePrint(tmp, grammar);
 
 		treeStack[treeStackSize++] = tmp;
 
@@ -298,7 +299,7 @@ LRStateTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 	for (unsigned i = 0 ; i < treeStackSize ; i++){
 		printf("[tree %u]\n", i);
-		lrStateTreePrint(treeStack[i], grammar);
+		lrParseTreePrint(treeStack[i], grammar);
 		printf("\n");
 	}
 
@@ -331,7 +332,7 @@ LRStateTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 
 
-LRStateTree * lrParserParseFile(LRParser * parser, const char * const filePath)
+LRParseTree * lrParserParseFile(LRParser * parser, const char * const filePath)
 {
 	char * buffer = loadFile(filePath);
 
@@ -340,7 +341,7 @@ LRStateTree * lrParserParseFile(LRParser * parser, const char * const filePath)
 		return NULL;
 	}
 
-	LRStateTree * output = lrParserParseStr(parser, buffer);
+	LRParseTree * output = lrParserParseStr(parser, buffer);
 
 	free(buffer);
 

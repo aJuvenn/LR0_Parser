@@ -5,13 +5,9 @@
  *      Author: ajuvenn
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <regex.h>
 
+#include "lr_include.h"
 
-#include "parse_config.h"
 
 char * loadFile(const char * const path)
 {
