@@ -22,9 +22,12 @@ typedef struct {
 } LRParser;
 
 
+#define LR_PARSER_MAX_DEPTH 1024
 
 
 LRParser * lrParserNew(const char * const configFilePath);
+
+void lrParserFree(LRParser * p);
 
 LRParseTree * lrParserParseStr(LRParser * parser, const char * const str);
 

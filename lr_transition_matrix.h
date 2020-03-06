@@ -26,6 +26,8 @@ typedef struct
 
 LRTransitionMatrix * lrTransitionMatrixFromGrammar(const LRGrammar * const grammar);
 
+void lrTransitionMatrixFree(LRTransitionMatrix * mat);
+
 unsigned lrTransitionMatrixGetNextStateId(const LRTransitionMatrix * const transitionMatrix, const unsigned stateId, const unsigned symbolId);
 
 

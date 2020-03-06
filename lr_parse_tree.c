@@ -12,20 +12,31 @@ LRParseTree * lrParseTreeNew(const unsigned maxNbSons)
 {
 	LRParseTree * output = malloc(sizeof(LRParseTree));
 
-	if (output == NULL){
-		return NULL;
-	}
-
-
-	if (maxNbSons == 0){
-		output->isLeaf = 1;
+	if (output == NULL || maxNbSons == 0){
 		return output;
 	}
 
-	output->isLeaf = 0;
 	output->node.sons = malloc(maxNbSons * sizeof(LRParseTree *));
 
 	return output;
+}
+
+
+void lrParseTreeFree(LRParseTree * t)
+{
+	if (t->isLeaf){
+		free(t->leaf.tokenData);
+
+	} else {
+
+		for (unsigned i = 0 ; i < t->node.nbSons ; i++){
+			lrParseTreeFree(t->node.sons[i]);
+		}
+
+		free(t->node.sons);
+	}
+
+	free(t);
 }
 
 

@@ -9,7 +9,6 @@
 
 
 
-
 int lrTransitionMatrixNodeIsIn(const LRTransitionMatrix * const transitionMatrix, const LRNode * const node)
 {
 	for (unsigned i = 0 ; i < transitionMatrix->nbStates ; i++){
@@ -189,6 +188,19 @@ LRTransitionMatrix * lrTransitionMatrixFromGrammar(const LRGrammar * const gramm
 	lrTransitionMatrixFillReduce(grammar, transitionMatrix);
 
 	return transitionMatrix;
+}
+
+
+
+void lrTransitionMatrixFree(LRTransitionMatrix * mat)
+{
+	for (unsigned i = 0 ; i < mat->nbStates ; i++){
+		lrNodeFree(mat->stateNodes[i]);
+	}
+
+	free(mat->stateNodes);
+	free(mat->transitions);
+	free(mat);
 }
 
 

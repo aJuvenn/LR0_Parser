@@ -29,6 +29,8 @@ int main(int argc, char **argv)
 	}
 
 	lrParseTreePrint(tree, parser->grammar);
+	lrParseTreeFree(tree);
+	lrParserFree(parser);
 
 	return 0;
 }

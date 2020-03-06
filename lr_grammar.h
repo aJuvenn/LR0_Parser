@@ -28,6 +28,8 @@ typedef struct
 
 
 LRGrammar * lrGrammarFromDescr(GrammarDescription * descr);
+void lrGrammarFree(LRGrammar * g);
+
 void lrGrammarPrintRule(const LRGrammar * const g, const unsigned ruleId);
 void lrGrammarPrint(const LRGrammar * const g);
 

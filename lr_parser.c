@@ -74,9 +74,17 @@ LRParser * lrParserNew(const char * const configFilePath)
 }
 
 
+void lrParserFree(LRParser * p)
+{
+	for (unsigned i = 0 ; i < p->nbTokens ; i++){
+		cdfa__free_automaton(p->tokenAutomatons[i]);
+	}
 
-
-
+	free(p->tokenAutomatons);
+	lrGrammarFree(p->grammar);
+	lrTransitionMatrixFree(p->transition);
+	free(p);
+}
 
 
 int lrParserSplitNextWord(LRParser *  parser, const char * str, unsigned * out__word_begin, unsigned * out__word_end, unsigned * out__automaton_id)
@@ -203,13 +211,24 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 	LRParseTree * tmp;
 
-	unsigned stackSize = 0;
-	unsigned stack[1000];
+	unsigned stateStackSize = 0;
+	unsigned * stateStack = malloc(LR_PARSER_MAX_DEPTH * sizeof(unsigned));
+
+	if (stateStack == NULL){
+		return NULL;
+	}
+
+	stateStack[stateStackSize++] = 0;
+
 
 	unsigned treeStackSize = 0;
-	LRParseTree * treeStack[1000];
+	LRParseTree ** treeStack = malloc(LR_PARSER_MAX_DEPTH * sizeof(LRParseTree *));
 
-	stack[stackSize++] = 0;
+	if (treeStack == NULL){
+		free(stateStack);
+		return NULL;
+	}
+
 
 	const char * cursor = str;
 
@@ -227,7 +246,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 	while (currentTokenId != -1){
 
-		unsigned currentSate = stack[stackSize - 1];
+		unsigned currentSate = stateStack[stateStackSize - 1];
 		printf("----------------------------\n");
 		printf("Current state: %u, current symbol: %s\n", currentSate, grammar->symbolNames[currentTokenId]);
 
@@ -235,10 +254,11 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 		if (action >= 0){
 			// shift
-			stack[stackSize++] = (unsigned) action;
+			stateStack[stateStackSize++] = (unsigned) action;
 			printf("Shift %d\n", action);
 
 			tmp = lrParseTreeNew(0);
+			tmp->isLeaf = 1;
 			tmp->leaf.tokenId = currentTokenId;
 			tmp->leaf.tokenData = currentTokenData;
 
@@ -257,12 +277,10 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 		// reduce
 		action = -(action + 1);
 
-		//printf("[%c][%u] Reduce %d : [ ", symbolIdToChar[currentSymbol], currentSate, action);
 		printf("Reducing rule ");
 		lrGrammarPrintRule(grammar, action);
 
 		unsigned ruleSize = grammar->rightRuleSizes[action];
-		//unsigned nbNonTerm = nbNonTerminal(grammar, action);
 
 		tmp = lrParseTreeNew(ruleSize);
 		tmp->isLeaf = 0;
@@ -274,24 +292,17 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 		tmp->node.nonTerminalId = grammar->leftRules[action];
 		tmp->node.ruleId = action;
 
-		stackSize -= ruleSize;
+		stateStackSize -= ruleSize;
 		treeStackSize -= ruleSize;
-		currentSate = stack[stackSize - 1];
+		currentSate = stateStack[stateStackSize - 1];
 
 		unsigned new_state = lrTransitionMatrixGetNextStateId(transitions, currentSate, grammar->leftRules[action]);
-		stack[stackSize++] = new_state;
+		stateStack[stateStackSize++] = new_state;
 		printf("Pusing tree...\n");
 		lrParseTreePrint(tmp, grammar);
 
 		treeStack[treeStackSize++] = tmp;
 
-		/*
-		for (unsigned j = 0 ; j < stackSize ; j++){
-			printf("%u ", stack[j]);
-		}
-
-		printf("]\n");
-		 */
 	}
 	printf("----------------------------\n");
 	printf("----------------------------\n");
@@ -301,34 +312,22 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 		printf("[tree %u]\n", i);
 		lrParseTreePrint(treeStack[i], grammar);
 		printf("\n");
+
+		if (i != 0){
+			lrParseTreeFree(treeStack[i]);
+		}
 	}
 
 	printf("----------------------------\n");
 	printf("----------------------------\n");
-	/*
-	LRStateTree * output = lrStateTreeNew(treeStackSize);
-	addStrRule(g, 'E', "0");
 
-	output->nbSons = treeStackSize;
+	LRParseTree * output = treeStack[0];
 
-	for (unsigned i = 0 ; i < treeStackSize ; i++){
-		output->sons[i] = treeStack[i];
-	}
+	free(treeStack);
+	free(stateStack);
 
-	output->symbol = 0;
-	 */
-
-	return treeStack[0];
+	return output;
 }
-
-
-
-
-
-
-
-
-
 
 
 

@@ -29,6 +29,26 @@ LRGrammar * lrGrammarNew(unsigned nbNonTerminals, unsigned nbTerminals, unsigned
 }
 
 
+void lrGrammarFree(LRGrammar * g)
+{
+	free(g->leftRules);
+
+	for (unsigned i = 0 ; i < g->nbRules ; i++){
+		free(g->rightRules[i]);
+	}
+
+	free(g->rightRules);
+	free(g->rightRuleSizes);
+
+	for (unsigned i = 0 ; i < g->nbSymbols ; i++){
+		free(g->symbolNames[i]);
+	}
+
+	free(g->symbolNames);
+	free(g);
+}
+
+
 void lrGrammarPrintRule(const LRGrammar * const g, const unsigned ruleId)
 {
 	printf("[%u]\t%s -> ", ruleId, g->symbolNames[g->leftRules[ruleId]]);
@@ -77,6 +97,10 @@ LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
 	unsigned nbNonTerminals = 0;
 	char ** nonTerminals = malloc(MAX_NB_LINES * sizeof(char *));
 
+	if (nonTerminals == NULL){
+		return NULL;
+	}
+
 	for (unsigned i = 0 ; i < descr->nbGrammarRules ; i++){
 
 		char * leftTerm = descr->ruleLeftMembers[i];
@@ -94,6 +118,7 @@ LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
 			char * rightTerm = descr->ruleRightMembers[i][j];
 			if (strIndex(rightTerm, nbNonTerminals, nonTerminals) == -1 && strIndex(rightTerm, nbTerminals, terminals) == -1){
 				fprintf(stderr, "Unknown term %s in grammar rule\n", rightTerm);
+				free(nonTerminals);
 				return NULL;
 			}
 		}
@@ -119,6 +144,7 @@ LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
 
 				if (index == -1){
 					fprintf(stderr, "Unknown term %s in grammar rule\n", rightTerm);
+					free(nonTerminals);
 					return NULL;
 				}
 
@@ -139,6 +165,8 @@ LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
 	for (unsigned i = 0 ; i < nbTerminals ; i++){
 		output->symbolNames[i + nbNonTerminals] = strdup(terminals[i]);
 	}
+
+	free(nonTerminals);
 
 	return output;
 }

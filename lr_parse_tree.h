@@ -35,6 +35,8 @@ typedef struct LRParseTree
 
 
 LRParseTree * lrParseTreeNew(const unsigned maxNbSons);
+void lrParseTreeFree(LRParseTree * t);
+
 
 void lrParseTreePrint(const LRParseTree * const tree , const LRGrammar * const g);
 
