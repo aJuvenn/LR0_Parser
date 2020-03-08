@@ -8,7 +8,7 @@
 #ifndef LR_GRAMMAR_H_
 #define LR_GRAMMAR_H_
 
-#include "lr_include.h"
+#include "../lr_include.h"
 
 typedef struct
 {

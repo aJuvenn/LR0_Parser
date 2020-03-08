@@ -8,7 +8,7 @@
 #ifndef LR_TRANSITION_MATRIX_H_
 #define LR_TRANSITION_MATRIX_H_
 
-#include "lr_grammar.h"
+#include "../lr_include.h"
 
 
 

@@ -8,7 +8,8 @@
 #ifndef LR_PARSER_H_
 #define LR_PARSER_H_
 
-#include "lr_include.h"
+#include "../lr_include.h"
+
 
 
 typedef struct {

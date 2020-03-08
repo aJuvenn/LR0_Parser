@@ -5,8 +5,7 @@
  *      Author: ajuvenn
  */
 
-#include "lr_include.h"
-
+#include "../lr_include.h"
 
 
 LRGrammar * lrGrammarNew(unsigned nbNonTerminals, unsigned nbTerminals, unsigned maxNbRules)

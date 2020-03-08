@@ -5,12 +5,8 @@
  *      Author: ajuvenn
  */
 
-#include <stdlib.h>
-#include "parse_config.h"
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
-#include "lr_parser.h"
+#include "../lr_include.h"
+
 
 
 LRParser * lrParserNew(const char * const configFilePath)

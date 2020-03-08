@@ -8,7 +8,7 @@
 #ifndef LR_NODE_H_
 #define LR_NODE_H_
 
-#include "lr_include.h"
+#include "../lr_include.h"
 
 typedef struct
 {

@@ -8,7 +8,7 @@
 #ifndef LR_PARSE_TREE_H_
 #define LR_PARSE_TREE_H_
 
-#include "lr_include.h"
+#include "../lr_include.h"
 
 
 
