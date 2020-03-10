@@ -1,29 +1,9 @@
-let true
-	fun (x y) x
-;
-	
-let false
-	fun (x y) y
+
+# This is a comment #
+
+let f
+	fun (x y)
+		"coucou !"
 ;
 
-let cons
-	fun (x y f)
-		[f x y]
-;
-		
-let fst
-	fun (c)
-		(c true)
-;
-		
-let snd
-	fun (c)
-		(c false)
-;
-		
-
-	
-(snd (cons true (cons false true))) 
-	
-			
 eof

@@ -50,6 +50,8 @@ int split(char * buffer, const char * const sep, unsigned * out_nbParts, char **
 }
 
 
+
+
 int splitLines(char * buffer, unsigned * out_nbTokenLines, char *** out_tokenLines, unsigned * out_nbGrammarLines, char *** out_grammarLines)
 {
 	unsigned nbTokenLines = 0;
@@ -104,28 +106,118 @@ int splitLines(char * buffer, unsigned * out_nbTokenLines, char *** out_tokenLin
 }
 
 
-void separate(char * line, char * sep, char ** out_left, char ** out_right)
+/*
+ * Looks for the first occurrence of sep and returns two substrings
+ */
+int separateInTwo(const char * const buffer, const char * const sep, char ** out_left, char ** out_right)
 {
-	char * left = strtok(line, sep);
-	char * right = strtok(NULL, sep);
+	const size_t bufferSize = strlen(buffer);
+	const size_t sepSize = strlen(sep);
+
+	if (bufferSize < sepSize){
+		return EXIT_FAILURE;
+	}
+
+	char * left = NULL;
+	char * right = NULL;
+
+	for (size_t i = 0 ; buffer[i + sepSize] != 0 ; i++){
+
+		if (strncmp(sep, buffer + i, sepSize)){
+			continue;
+		}
+
+		left = malloc((i + 1) * sizeof(char));
+
+		if (left == NULL){
+			return EXIT_FAILURE;
+		}
+
+		memcpy(left, buffer, i * sizeof(char));
+		left[i] = 0;
+
+		right = malloc((bufferSize - i - sepSize + 1) * sizeof(char));
+
+		if (right == NULL){
+			free(left);
+			return EXIT_FAILURE;
+		}
+
+		memcpy(right, buffer + i + sepSize, (bufferSize - i - sepSize) * sizeof(char));
+		right[bufferSize - i - sepSize] = 0;
+		break;
+	}
 
 	*out_left = left;
 	*out_right = right;
+
+	return EXIT_SUCCESS;
 }
 
 
-void separateLeftRight(unsigned nbLines, char ** lines, char * sep, char *** out_lefts, char *** out_rights)
+char * removeSpaceFromVarName(const char * const varName)
+{
+	unsigned beginId, endId;
+
+	beginId = 0;
+
+	while (isspace(varName[beginId])){
+		beginId++;
+	}
+
+	endId = beginId;
+
+	while (varName[endId] != '\0' && !isspace(varName[endId])){
+		endId++;
+	}
+
+	const unsigned varSize = endId - beginId;
+	char * output = malloc(varSize + 1);
+
+	if (output == NULL){
+		return NULL;
+	}
+
+	memcpy(output, varName + beginId, varSize);
+	output[varSize] = '\0';
+
+	return output;
+}
+
+
+
+
+
+int separateLeftRight(unsigned nbLines, char ** lines, char * sep, char *** out_lefts, char *** out_rights)
 {
 	char ** lefts = malloc(nbLines * sizeof(char *));
 	char ** rights = malloc(nbLines * sizeof(char *));
 
 	for (unsigned i = 0 ; i < nbLines ; i++){
-		separate(lines[i], sep, lefts + i, rights + i);
+		char * left;
+		char * right;
+		int ret = separateInTwo(lines[i], sep, &left, &right);
+
+		if (ret != EXIT_SUCCESS){
+			return ret;
+		}
+
+		if (left == NULL || right == NULL){
+			return EXIT_FAILURE;
+		}
+
+		lefts[i] = removeSpaceFromVarName(left);
+		free(left);
+		rights[i] = right;
 	}
 
 	*out_lefts = lefts;
 	*out_rights = rights;
+
+	return EXIT_SUCCESS;
 }
+
+
 
 
 
@@ -146,16 +238,26 @@ GrammarDescription * parseConfigFile(const char * const path)
 
 	unsigned nbGrammarLines;
 	char ** grammarLines;
+	int ret;
 
 	splitLines(buff, &nbTokenLines, &tokenLines, &nbGrammarLines, &grammarLines);
 
 	char ** leftTokens;
 	char ** rightTokens;
-	separateLeftRight(nbTokenLines, tokenLines, "=", &leftTokens, &rightTokens);
+	ret = separateLeftRight(nbTokenLines, tokenLines, ":=", &leftTokens, &rightTokens);
+
+	if (ret != EXIT_SUCCESS){
+		return NULL;
+	}
 
 	char ** leftRules;
 	char ** rightRules;
-	separateLeftRight(nbGrammarLines, grammarLines, "=", &leftRules, &rightRules);
+	ret = separateLeftRight(nbGrammarLines, grammarLines, "->", &leftRules, &rightRules);
+
+
+	if (ret != EXIT_SUCCESS){
+		return NULL;
+	}
 
 	output->nbTokens = nbTokenLines;
 	output->tokenNames = leftTokens;

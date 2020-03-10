@@ -1,58 +1,63 @@
 # Token List #
 
-fun=fun
-if=if
-else=else
-let=let
-in=in
-rec=rec
-op=(>|<)
-int=\-?([0-9]+)
-var=[a-zA-Z_]([a-zA-Z0-9_]*)
-(=\(
-)=\)
-[=\[
-]=\]
-;=;
-eof=eof
+fun := fun
+if := if
+else := else
+let := let
+in := in
+rec := rec
+eof := eof
+op := (>|<|=|>=|<=)
+int := \-?([0-9]+)
+var := [a-zA-Z_]([a-zA-Z0-9_]*)
+( := \(
+) := \)
+[ := \[
+] := \]
+; := ;
+string := "(.*-")"
+comments := #(.*-#)#
 
 # Grammar Rules #
 
-START= ILIST eof
+START -> ILIST eof
 
-ILIST= ILIST INSTR
-ILIST= INSTR
+ILIST -> ILIST INSTR
+ILIST -> INSTR
 
-INSTR= LET
-INSTR= EXPR
+INSTR -> LET
+INSTR -> EXPR
+INSTR -> comments
 
-LET= let var EXPR ;
-LET= let rec var EXPR ;
 
-EXPR= var
-EXPR= int
-EXPR= FUN
-EXPR= CALL
-EXPR= LCALL
-EXPR= OPCALL
-EXPR= LOPCALL
-EXPR= IFELSE
-EXPR= LETIN
+LET -> let var EXPR ;
+LET -> let rec var EXPR ;
 
-FUN= fun ( VLIST ) EXPR
-FUN= fun [ VLIST ] EXPR
+EXPR -> var
+EXPR -> int
+EXPR -> string
+EXPR -> FUN
+EXPR -> CALL
+EXPR -> LCALL
+EXPR -> OPCALL
+EXPR -> LOPCALL
+EXPR -> IFELSE
+EXPR -> LETIN
 
-VLIST= VLIST var
-VLIST= var
+FUN -> fun ( VLIST ) EXPR
+FUN -> fun [ VLIST ] EXPR
 
-CALL= ( ELIST )
-LCALL= [ ELIST ]
-OPCALL= ( op ELIST )
-LOPCALL= [ op ELIST ]
+VLIST -> VLIST var
+VLIST -> var
 
-ELIST= ELIST EXPR
-ELIST= EXPR
+CALL -> ( ELIST )
+LCALL -> [ ELIST ]
+OPCALL -> ( op ELIST )
+LOPCALL -> [ op ELIST ]
 
-IFELSE= if EXPR EXPR else EXPR
+ELIST -> ELIST EXPR
+ELIST -> EXPR
 
-LETIN= let var EXPR in EXPR
+IFELSE -> if EXPR EXPR else EXPR
+
+LETIN -> let var EXPR in EXPR
