@@ -30,6 +30,6 @@ void lrTransitionMatrixFree(LRTransitionMatrix * mat);
 
 unsigned lrTransitionMatrixGetNextStateId(const LRTransitionMatrix * const transitionMatrix, const unsigned stateId, const unsigned symbolId);
 
-
+void lrTransitionMatrixPrint(const LRTransitionMatrix * const mat, const LRGrammar * const g);
 
 #endif /* LR_TRANSITION_MATRIX_H_ */

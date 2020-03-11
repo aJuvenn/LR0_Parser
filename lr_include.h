@@ -16,7 +16,8 @@
 
 #include "cdfa/cdfa.h"
 
-#include "parse_config.h"
+#include "Utils/lr_utils.h"
+#include "FileConfig/lr_parse_config.h"
 #include "Grammar/lr_grammar.h"
 #include "TransitionTable/lr_node.h"
 #include "TransitionTable/lr_transition_matrix.h"

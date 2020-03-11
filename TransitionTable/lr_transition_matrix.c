@@ -205,7 +205,7 @@ void lrTransitionMatrixFree(LRTransitionMatrix * mat)
 
 
 
-void lrTransitionMatrixPrint(LRTransitionMatrix * mat, LRGrammar * g)
+void lrTransitionMatrixPrint(const LRTransitionMatrix * const mat, const LRGrammar * const g)
 {
 	unsigned nbSymols = g->nbSymbols;
 

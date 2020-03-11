@@ -6,4 +6,3 @@ let f
 		"coucou !"
 ;
 
-eof

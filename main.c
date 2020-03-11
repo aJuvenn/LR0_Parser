@@ -21,12 +21,18 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+
+	lrGrammarPrint(parser->grammar);
+
+	lrTransitionMatrixPrint(parser->transition, parser->grammar);
 	LRParseTree * tree = lrParserParseFile(parser, "source_file.txt");
 
 	if (tree == NULL){
 		fprintf(stderr, "Couldn't parse file\n");
 		exit(EXIT_FAILURE);
 	}
+
+	printf("\n\tParsed tree:\n");
 
 	lrParseTreePrint(tree, parser->grammar);
 	lrParseTreeFree(tree);

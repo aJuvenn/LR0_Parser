@@ -27,7 +27,7 @@ typedef struct
 
 
 
-LRGrammar * lrGrammarFromDescr(GrammarDescription * descr);
+LRGrammar * lrGrammarFromDescr(lrFileConfig * descr);
 void lrGrammarFree(LRGrammar * g);
 
 void lrGrammarPrintRule(const LRGrammar * const g, const unsigned ruleId);

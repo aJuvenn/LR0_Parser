@@ -91,7 +91,7 @@ unsigned strIndex(char * str, unsigned nbStrs, char ** strs)
 }
 
 
-LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
+LRGrammar * lrGrammarFromDescr(lrFileConfig * descr)
 {
 	unsigned nbNonTerminals = 0;
 	char ** nonTerminals = malloc(MAX_NB_LINES * sizeof(char *));
@@ -123,7 +123,17 @@ LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
 		}
 	}
 
-	LRGrammar * output = lrGrammarNew(nbNonTerminals, nbTerminals, descr->nbGrammarRules);
+	LRGrammar * output = lrGrammarNew(nbNonTerminals + 1, nbTerminals + 1, descr->nbGrammarRules + 1);
+
+	unsigned int * startRightRule = malloc(2 * sizeof(unsigned int));
+
+	if (startRightRule == NULL){
+		return NULL;
+	}
+
+	startRightRule[0] = 1;
+	startRightRule[1] = nbNonTerminals + nbTerminals + 1;
+	lrGrammarAddRule(output, 0, 2, startRightRule);
 
 
 	for (unsigned i = 0 ; i < descr->nbGrammarRules ; i++){
@@ -147,23 +157,31 @@ LRGrammar * lrGrammarFromDescr(GrammarDescription * descr)
 					return NULL;
 				}
 
-				index += nbNonTerminals;
+				index += nbNonTerminals + 1;
+
+			} else {
+				index += 1;
 			}
 
 			rightRuleIndexes[j] = index;
 		}
 
-		lrGrammarAddRule(output, leftRuleIndex, ruleSize, rightRuleIndexes);
+		lrGrammarAddRule(output, leftRuleIndex + 1, ruleSize, rightRuleIndexes);
 	}
 
 
+	output->symbolNames[0] = strdup("<START>");
+
 	for (unsigned i = 0 ; i < nbNonTerminals ; i++){
-		output->symbolNames[i] = strdup(nonTerminals[i]);
+		output->symbolNames[i+1] = strdup(nonTerminals[i]);
 	}
 
 	for (unsigned i = 0 ; i < nbTerminals ; i++){
-		output->symbolNames[i + nbNonTerminals] = strdup(terminals[i]);
+		output->symbolNames[i + nbNonTerminals+1] = strdup(terminals[i]);
 	}
+
+	output->symbolNames[nbNonTerminals + nbTerminals + 1] = strdup("<eof>");
+
 
 	free(nonTerminals);
 

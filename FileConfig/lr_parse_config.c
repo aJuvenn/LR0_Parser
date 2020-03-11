@@ -6,31 +6,11 @@
  */
 
 
-#include "lr_include.h"
-
-
-char * loadFile(const char * const path)
-{
-	FILE * f;
-	unsigned fileLength;
-	char * output;
-
-	f = fopen(path, "r");
-	fseek(f, 0, SEEK_END);
-	fileLength = ftell(f);
-	output = malloc(fileLength+1);
-	rewind(f);
-	fread(output, fileLength, 1, f);
-	fclose(f);
-
-	output[fileLength] = '\0';
-
-	return output;
-}
+#include "../lr_include.h"
 
 
 
-int split(char * buffer, const char * const sep, unsigned * out_nbParts, char *** out_parts)
+static int split(char * buffer, const char * const sep, unsigned * out_nbParts, char *** out_parts)
 {
 	unsigned nbParts = 0;
 	char ** parts = malloc(MAX_NB_LINES * sizeof(char *));
@@ -52,7 +32,7 @@ int split(char * buffer, const char * const sep, unsigned * out_nbParts, char **
 
 
 
-int splitLines(char * buffer, unsigned * out_nbTokenLines, char *** out_tokenLines, unsigned * out_nbGrammarLines, char *** out_grammarLines)
+static int splitLines(char * buffer, unsigned * out_nbTokenLines, char *** out_tokenLines, unsigned * out_nbGrammarLines, char *** out_grammarLines)
 {
 	unsigned nbTokenLines = 0;
 	char ** tokenLines = malloc(MAX_NB_LINES * sizeof(char *));
@@ -109,7 +89,7 @@ int splitLines(char * buffer, unsigned * out_nbTokenLines, char *** out_tokenLin
 /*
  * Looks for the first occurrence of sep and returns two substrings
  */
-int separateInTwo(const char * const buffer, const char * const sep, char ** out_left, char ** out_right)
+static int separateInTwo(const char * const buffer, const char * const sep, char ** out_left, char ** out_right)
 {
 	const size_t bufferSize = strlen(buffer);
 	const size_t sepSize = strlen(sep);
@@ -155,7 +135,7 @@ int separateInTwo(const char * const buffer, const char * const sep, char ** out
 }
 
 
-char * removeSpaceFromVarName(const char * const varName)
+static char * removeSpaceFromVarName(const char * const varName)
 {
 	unsigned beginId, endId;
 
@@ -188,7 +168,7 @@ char * removeSpaceFromVarName(const char * const varName)
 
 
 
-int separateLeftRight(unsigned nbLines, char ** lines, char * sep, char *** out_lefts, char *** out_rights)
+static int separateLeftRight(unsigned nbLines, char ** lines, char * sep, char *** out_lefts, char *** out_rights)
 {
 	char ** lefts = malloc(nbLines * sizeof(char *));
 	char ** rights = malloc(nbLines * sizeof(char *));
@@ -228,10 +208,10 @@ int separateLeftRight(unsigned nbLines, char ** lines, char * sep, char *** out_
 
 
 
-GrammarDescription * parseConfigFile(const char * const path)
+lrFileConfig * lrFileConfigParse(const char * const path)
 {
-	GrammarDescription * output = malloc(sizeof(GrammarDescription));
-	char * buff = loadFile(path);
+	lrFileConfig * output = malloc(sizeof(lrFileConfig));
+	char * buff = lrLoadFile(path);
 
 	unsigned nbTokenLines;
 	char ** tokenLines;
@@ -285,7 +265,7 @@ GrammarDescription * parseConfigFile(const char * const path)
 }
 
 
-void printConfigFile(GrammarDescription * descr)
+void lrFileConfigPrint(lrFileConfig * descr)
 {
 	printf("# Tokens #\n");
 

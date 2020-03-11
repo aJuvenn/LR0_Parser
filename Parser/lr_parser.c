@@ -17,7 +17,7 @@ LRParser * lrParserNew(const char * const configFilePath)
 		goto ERR0;
 	}
 
-	GrammarDescription * conf = parseConfigFile(configFilePath);
+	lrFileConfig * conf = lrFileConfigParse(configFilePath);
 
 	if (conf == NULL){
 		goto ERR1;
@@ -178,8 +178,8 @@ int lrParserNextToken(LRParser * parser, const char ** cursor, unsigned * out__t
 	if (word_size == 0){
 		/* End of file */
 		*cursor += word_end;
-		*out__token_id = -1;
-		*out__token_data = NULL;
+		*out__token_id = parser->grammar->nbSymbols - 1;
+		*out__token_data = strdup("<eof>");
 		return EXIT_SUCCESS;
 	}
 
@@ -230,28 +230,27 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 	unsigned currentTokenId;
 	char * currentTokenData;
+	const unsigned endOfFileToken = parser->grammar->nbSymbols - 1;
 
 	int ret;
 
 	ret = lrParserNextToken(parser, &cursor, &currentTokenId, &currentTokenData);
 
-	if (ret != EXIT_SUCCESS || currentTokenId == -1){
-		fprintf(stderr, "failure\n");
+	if (ret != EXIT_SUCCESS || currentTokenId == endOfFileToken){
 		return NULL;
 	}
 
-	while (currentTokenId != -1){
+	int eofAlreadyEncountered = 0;
+
+	while (1){
 
 		unsigned currentSate = stateStack[stateStackSize - 1];
-		printf("----------------------------\n");
-		printf("Current state: %u, current symbol: %s\n", currentSate, grammar->symbolNames[currentTokenId]);
 
 		int action = (int) lrTransitionMatrixGetNextStateId(transitions, currentSate, currentTokenId);
 
 		if (action >= 0){
 			// shift
 			stateStack[stateStackSize++] = (unsigned) action;
-			printf("Shift %d\n", action);
 
 			tmp = lrParseTreeNew(0);
 			tmp->isLeaf = 1;
@@ -263,8 +262,15 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 			ret = lrParserNextToken(parser, &cursor, &currentTokenId, &currentTokenData);
 
 			if (ret != EXIT_SUCCESS){
-				fprintf(stderr, "failure...\n");
 				return NULL;
+			}
+
+			if (currentTokenId == endOfFileToken){
+				if (eofAlreadyEncountered){
+					break;
+				} else {
+					eofAlreadyEncountered = 1;
+				}
 			}
 
 			continue;
@@ -272,9 +278,6 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 		// reduce
 		action = -(action + 1);
-
-		printf("Reducing rule ");
-		lrGrammarPrintRule(grammar, action);
 
 		unsigned ruleSize = grammar->rightRuleSizes[action];
 
@@ -294,31 +297,22 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 		unsigned new_state = lrTransitionMatrixGetNextStateId(transitions, currentSate, grammar->leftRules[action]);
 		stateStack[stateStackSize++] = new_state;
-		printf("Pusing tree...\n");
-		lrParseTreePrint(tmp, grammar);
-
 		treeStack[treeStackSize++] = tmp;
-
 	}
-	printf("----------------------------\n");
-	printf("----------------------------\n");
-	printf("Tree Stack Size : %u\n", treeStackSize);
 
-	for (unsigned i = 0 ; i < treeStackSize ; i++){
-		printf("[tree %u]\n", i);
-		lrParseTreePrint(treeStack[i], grammar);
-		printf("\n");
 
-		if (i != 0){
+	if (treeStackSize != 2 || treeStack[1]->isLeaf != 1 || treeStack[1]->leaf.tokenId != endOfFileToken){
+		for (unsigned i = 0 ; i < treeStackSize ; i++){
 			lrParseTreeFree(treeStack[i]);
 		}
+		free(treeStack);
+		free(stateStack);
+		return NULL;
 	}
-
-	printf("----------------------------\n");
-	printf("----------------------------\n");
 
 	LRParseTree * output = treeStack[0];
 
+	lrParseTreeFree(treeStack[1]);
 	free(treeStack);
 	free(stateStack);
 
@@ -329,7 +323,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 LRParseTree * lrParserParseFile(LRParser * parser, const char * const filePath)
 {
-	char * buffer = loadFile(filePath);
+	char * buffer = lrLoadFile(filePath);
 
 	if (buffer == NULL){
 		fprintf(stderr, "could not load file\n");
