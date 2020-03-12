@@ -51,12 +51,17 @@ int lrTransitionMatrixFillStates(const LRGrammar * const grammar, LRTransitionMa
 	const unsigned nbSymbols = grammar->nbNonTerminal + grammar->nbTerminals;
 
 	lrTransitionMatrixEmpty(transitionMatrix);
+
 	transitionMatrix->nbSymbols = nbSymbols;
 
-	LRNode * initialNode = lrNodeNew();
-	lrNodeAddDotedRule(initialNode, 0, 0);
-	lrNodeClose(grammar, initialNode);
-	lrTransitionMatrixAddNode(transitionMatrix, initialNode);
+	LRNode * errorNode = lrNodeNew();
+	lrTransitionMatrixAddNode(transitionMatrix, errorNode);
+
+	LRNode * startingNode = lrNodeNew();
+	lrNodeAddDotedRule(startingNode, 0, 0);
+	lrNodeClose(grammar, startingNode);
+	lrTransitionMatrixAddNode(transitionMatrix, startingNode);
+
 
 	for (unsigned nodeId = 0 ; nodeId < transitionMatrix->nbStates ; nodeId++){
 
@@ -170,18 +175,19 @@ LRTransitionMatrix * lrTransitionMatrixFromGrammar(const LRGrammar * const gramm
 	int ret;
 	LRTransitionMatrix * transitionMatrix = malloc(sizeof(LRTransitionMatrix));
 
-	lrTransitionMatrixEmpty(transitionMatrix);
+	if (transitionMatrix == NULL){
+		return NULL;
+	}
+
 	ret = lrTransitionMatrixFillStates(grammar, transitionMatrix);
 
 	if (ret != EXIT_SUCCESS){
-		printf("fill fail\n");
 		return NULL;
 	}
 
 	ret = lrTransitionMatrixFillTransitions(grammar, transitionMatrix);
 
 	if (ret != EXIT_SUCCESS){
-		printf("transition fail\n");
 		return NULL;
 	}
 

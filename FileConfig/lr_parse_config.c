@@ -45,6 +45,7 @@ static int splitLines(char * buffer, unsigned * out_nbTokenLines, char *** out_t
 	char ** grammarLines = malloc(MAX_NB_LINES * sizeof(char *));
 
 	if (grammarLines == NULL){
+		free(tokenLines);
 		return EXIT_FAILURE;
 	}
 

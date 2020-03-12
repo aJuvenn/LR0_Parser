@@ -214,7 +214,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 		return NULL;
 	}
 
-	stateStack[stateStackSize++] = 0;
+	stateStack[stateStackSize++] = 1;
 
 
 	unsigned treeStackSize = 0;
@@ -246,10 +246,14 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 		unsigned currentSate = stateStack[stateStackSize - 1];
 
+		if (currentSate == 0){
+			return NULL;
+		}
+
 		int action = (int) lrTransitionMatrixGetNextStateId(transitions, currentSate, currentTokenId);
 
 		if (action >= 0){
-			// shift
+			/* shift */
 			stateStack[stateStackSize++] = (unsigned) action;
 
 			tmp = lrParseTreeNew(0);
@@ -276,7 +280,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 			continue;
 		}
 
-		// reduce
+		/* reduce */
 		action = -(action + 1);
 
 		unsigned ruleSize = grammar->rightRuleSizes[action];
@@ -299,7 +303,6 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 		stateStack[stateStackSize++] = new_state;
 		treeStack[treeStackSize++] = tmp;
 	}
-
 
 	if (treeStackSize != 2 || treeStack[1]->isLeaf != 1 || treeStack[1]->leaf.tokenId != endOfFileToken){
 		for (unsigned i = 0 ; i < treeStackSize ; i++){
