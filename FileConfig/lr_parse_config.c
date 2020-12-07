@@ -244,6 +244,14 @@ lrFileConfig * lrFileConfigParse(const char * const path)
 	output->tokenNames = leftTokens;
 	output->tokenRegexp = rightTokens;
 
+	output->skippedToken = -1;
+
+	for (unsigned i = 0 ; i < nbTokenLines ; i++){
+		if (strcmp(leftTokens[i], "<SKIPPED>") == 0){
+			output->skippedToken = i;
+		}
+	}
+
 	output->nbGrammarRules = nbGrammarLines;
 
 	output->ruleLeftMembers = leftRules;

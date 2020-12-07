@@ -15,6 +15,7 @@
 typedef struct {
 
 	unsigned nbTokens;
+	unsigned skippedAutomatonId;
 	cdfa__automaton ** tokenAutomatons;
 
 	LRGrammar * grammar;

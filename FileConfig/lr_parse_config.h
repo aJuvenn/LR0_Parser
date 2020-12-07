@@ -16,6 +16,7 @@ typedef struct
 	unsigned nbTokens;
 	char ** tokenNames;
 	char ** tokenRegexp;
+	unsigned skippedToken;
 
 	unsigned nbGrammarRules;
 	char ** ruleLeftMembers;

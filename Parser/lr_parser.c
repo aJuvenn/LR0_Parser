@@ -25,6 +25,7 @@ LRParser * lrParserNew(const char * const configFilePath)
 
 	output->nbTokens = conf->nbTokens;
 	output->tokenAutomatons = malloc(output->nbTokens * sizeof(cdfa__automaton *));
+	output->skippedAutomatonId = conf->skippedToken;
 
 	if (output->tokenAutomatons == NULL){
 		goto ERR2;
@@ -83,118 +84,130 @@ void lrParserFree(LRParser * p)
 }
 
 
-int lrParserSplitNextWord(LRParser *  parser, const char * str, unsigned * out__word_begin, unsigned * out__word_end, unsigned * out__automaton_id)
+int lrParserSplitNextWord(LRParser *  parser,
+						  const char * str,
+						  unsigned * out_wordBegin, unsigned * out_wordEnd,
+						  unsigned * out_automatonId)
 {
-	unsigned nb_automatons = parser->nbTokens;
+	unsigned nbAutomatons = parser->nbTokens;
 	cdfa__automaton ** automatons = parser->tokenAutomatons;
 
-	unsigned nb_still_running_automatons = nb_automatons;
-	char still_running[nb_automatons];
-	memset(still_running, 1, nb_automatons);
+	unsigned nbStillRunningAutomatons = nbAutomatons;
+	char stillRunning[nbAutomatons];
+	memset(stillRunning, 1, nbAutomatons);
 
-	for (unsigned i = 0 ; i < nb_automatons ; i++){
+	for (unsigned i = 0 ; i < nbAutomatons ; i++){
 		cdfa__move_to_starting_state(automatons[i]);
 	}
 
-	unsigned last_valid_char_id = (unsigned) -1;
-	unsigned last_valid_automaton_id = (unsigned) -1;
-	unsigned char_id = 0;
+	unsigned charId = 0;
+	unsigned lastValidCharId = (unsigned) -1;
+	unsigned lastValidAutomatonId = (unsigned) -1;
 
-	while (isspace(str[char_id])){
-		char_id++;
+	while (isspace(str[charId])){
+		charId++;
 	}
 
-	unsigned word_begin = char_id;
+	unsigned wordBegin = charId;
 	char c;
 
-	if (str[char_id] == '\0' || str[char_id] == EOF){
-		*out__word_begin = word_begin;
-		*out__word_end = word_begin;
-		*out__automaton_id = (unsigned) -1;
+	if (str[charId] == '\0' || str[charId] == EOF){
+		*out_wordBegin = wordBegin;
+		*out_wordEnd = wordBegin;
+		*out_automatonId = (unsigned) -1;
 		return EXIT_SUCCESS;
 	}
 
 	do {
 
-		c = str[char_id];
+		c = str[charId];
 
-		for (unsigned i = nb_automatons ; i > 0 ; i--){
+		for (unsigned i = nbAutomatons ; i > 0 ; i--){
 			/*
 			 * Automaton list treatment is reversed so that firsts automatons have
 			 * an higher priority in case of conflict
 			 */
-			unsigned automaton_id = i-1;
+			unsigned automatonId = i-1;
 
-			if (!still_running[automaton_id]){
+			if (!stillRunning[automatonId]){
 				continue;
 			}
 
-			cdfa__automaton_state state = cdfa__move_to_next_state(c, automatons[automaton_id]);
+			cdfa__automaton_state state = cdfa__move_to_next_state(c, automatons[automatonId]);
 
 			if (state == CDFA__WELL){
-				still_running[automaton_id] = 0;
-				nb_still_running_automatons--;
+				stillRunning[automatonId] = 0;
+				nbStillRunningAutomatons--;
 
-			} else if (cdfa__is_a_final_state(state, automatons[automaton_id])){
+			} else if (cdfa__is_a_final_state(state, automatons[automatonId])){
 				// Higher priority for low indexes since they are the last in the loop
-				last_valid_char_id = char_id;
-				last_valid_automaton_id = automaton_id;
+				lastValidCharId = charId;
+				lastValidAutomatonId = automatonId;
 			}
 		}
 
-		char_id++;
+		charId++;
 
-	} while (nb_still_running_automatons != 0 && c != '\0' && c != EOF);
+	} while (nbStillRunningAutomatons != 0 && c != '\0' && c != EOF);
 
-
-	if (last_valid_char_id == (unsigned) -1){
+	if (lastValidCharId == (unsigned) -1){
 		return EXIT_FAILURE;
 	}
 
-	*out__word_begin = word_begin;
-	*out__word_end = last_valid_char_id + 1;
-	*out__automaton_id = last_valid_automaton_id;
+	*out_wordBegin = wordBegin;
+	*out_wordEnd = lastValidCharId + 1;
+	*out_automatonId = lastValidAutomatonId;
 
 	return EXIT_SUCCESS;
 }
 
 
 
-int lrParserNextToken(LRParser * parser, const char ** cursor, unsigned * out__token_id, char ** out__token_data)
+int lrParserNextToken(LRParser * parser, const char ** cursor, unsigned * out_tokenId, char ** out_tokenData)
 {
 	int ret;
-	unsigned word_begin;
-	unsigned word_end;
-	unsigned automaton_id;
+	unsigned wordBegin;
+	unsigned wordEnd;
+	unsigned automatonId;
+	unsigned wordSize;
 
-	ret = lrParserSplitNextWord(parser, *cursor, &word_begin, &word_end, &automaton_id);
+	while (1){
 
-	if (ret != EXIT_SUCCESS){
-		return ret;
+		ret = lrParserSplitNextWord(parser, *cursor, &wordBegin, &wordEnd, &automatonId);
+
+		if (ret != EXIT_SUCCESS){
+			return ret;
+		}
+
+		wordSize = wordEnd - wordBegin;
+
+		if (wordSize == 0){
+			/* End of file */
+			*cursor += wordEnd;
+			*out_tokenId = parser->grammar->nbSymbols - 1;
+			*out_tokenData = strdup("<eof>");
+			return EXIT_SUCCESS;
+		}
+
+		if (automatonId != parser->skippedAutomatonId){
+			break;
+		}
+
+		*cursor += wordEnd;
 	}
 
-	unsigned word_size = word_end - word_begin;
+	char * tokenData = malloc(wordSize + 1);
 
-	if (word_size == 0){
-		/* End of file */
-		*cursor += word_end;
-		*out__token_id = parser->grammar->nbSymbols - 1;
-		*out__token_data = strdup("<eof>");
-		return EXIT_SUCCESS;
-	}
-
-	char * token_data = malloc(word_size + 1);
-
-	if (token_data == NULL){
+	if (tokenData == NULL){
 		return EXIT_FAILURE;
 	}
 
-	memcpy(token_data, *cursor + word_begin, word_size);
-	token_data[word_size] = '\0';
+	memcpy(tokenData, *cursor + wordBegin, wordSize);
+	tokenData[wordSize] = '\0';
 
-	*cursor += word_end;
-	*out__token_id = (automaton_id + parser->grammar->nbNonTerminal);
-	*out__token_data = token_data;
+	*cursor += wordEnd;
+	*out_tokenId = (automatonId + parser->grammar->nbNonTerminal);
+	*out_tokenData = tokenData;
 
 	return EXIT_SUCCESS;
 }
@@ -329,7 +342,6 @@ LRParseTree * lrParserParseFile(LRParser * parser, const char * const filePath)
 	char * buffer = lrLoadFile(filePath);
 
 	if (buffer == NULL){
-		fprintf(stderr, "could not load file\n");
 		return NULL;
 	}
 

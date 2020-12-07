@@ -12,7 +12,7 @@
 
 int main(int argc, char **argv)
 {
-	char * configPath = "grammar.txt";
+	char * configPath = "funl_grammar.txt";
 
 	LRParser * parser = lrParserNew(configPath);
 

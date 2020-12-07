@@ -1,8 +1,17 @@
+#
+    Tis is a comment
+#
 
-# This is a comment #
-
-let f
-	fun (x y)
-		"coucou !"
+let rec splitintwo
+    #
+        Comment is skipped
+    #
+	fun (l l1 l2)
+		if (isempty l)
+			(cons l1 l2)
+		else
+			(splitintwo (tail l) l2 (cons (head l) l1))
+		end
 ;
 
+# ok #

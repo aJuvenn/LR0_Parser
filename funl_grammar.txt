@@ -3,6 +3,7 @@
 fun := fun
 if := if
 else := else
+end := end
 let := let
 in := in
 rec := rec
@@ -14,8 +15,9 @@ var := [a-zA-Z_]([a-zA-Z0-9_]*)
 [ := \[
 ] := \]
 ; := ;
-string := "(.*-")"
-comments := #(.*-#)#
+string := "((.-")*)"
+
+<SKIPPED> := #((.-#)*)#
 
 # Grammar Rules #
 
@@ -24,7 +26,6 @@ ILIST -> INSTR
 
 INSTR -> LET
 INSTR -> EXPR
-INSTR -> comments
 
 
 LET -> let var EXPR ;
@@ -55,6 +56,6 @@ LOPCALL -> [ op ELIST ]
 ELIST -> ELIST EXPR
 ELIST -> EXPR
 
-IFELSE -> if EXPR EXPR else EXPR
+IFELSE -> if EXPR EXPR else EXPR end
 
 LETIN -> let var EXPR in EXPR
