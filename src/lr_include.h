@@ -21,8 +21,7 @@
 #include "Grammar/lr_grammar.h"
 #include "TransitionTable/lr_node.h"
 #include "TransitionTable/lr_transition_matrix.h"
-#include "Parser/lr_parse_tree.h"
-#include "Parser/lr_parser.h"
-
+#include "Parser/lr_parser_structure.h"
+#include "../lr_parser.h"
 
 #endif /* LR_INCLUDE_H_ */

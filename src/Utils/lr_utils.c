@@ -17,6 +17,11 @@ char * lrLoadFile(const char * const path)
 	char * output;
 
 	f = fopen(path, "r");
+
+	if (f == NULL){
+		return NULL;
+	}
+
 	fseek(f, 0, SEEK_END);
 	fileLength = ftell(f);
 	output = malloc(fileLength+1);

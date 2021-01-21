@@ -9,81 +9,6 @@
 
 
 
-LRParser * lrParserNew(const char * const configFilePath)
-{
-	LRParser *  output = malloc(sizeof(LRParser));
-
-	if (output == NULL){
-		goto ERR0;
-	}
-
-	lrFileConfig * conf = lrFileConfigParse(configFilePath);
-
-	if (conf == NULL){
-		goto ERR1;
-	}
-
-	output->nbTokens = conf->nbTokens;
-	output->tokenAutomatons = malloc(output->nbTokens * sizeof(cdfa__automaton *));
-	output->skippedAutomatonId = conf->skippedToken;
-
-	if (output->tokenAutomatons == NULL){
-		goto ERR2;
-	}
-
-	unsigned tokenId;
-
-	for (tokenId = 0 ; tokenId < output->nbTokens ; tokenId++){
-
-		output->tokenAutomatons[tokenId] = cdfa__expression_recognizing_automaton(conf->tokenRegexp[tokenId]);
-
-		if (output->tokenAutomatons[tokenId] == NULL){
-			goto ERR3;
-		}
-	}
-
-	output->grammar = lrGrammarFromDescr(conf);
-
-	if (output->grammar == NULL){
-		goto ERR3;
-	}
-
-	output->transition = lrTransitionMatrixFromGrammar(output->grammar);
-
-	if (output->transition == NULL){
-		goto ERR4;
-	}
-
-	return output;
-
-	ERR4: // TODO free grammar
-
-	ERR3:
-	for (unsigned i = 0 ; i < tokenId ; i++){
-		cdfa__free_automaton(output->tokenAutomatons[i]);
-	}
-
-	free(output->tokenAutomatons);
-
-	ERR2: // TODO free conf
-	ERR1: free(output);
-	ERR0: return NULL;
-}
-
-
-void lrParserFree(LRParser * p)
-{
-	for (unsigned i = 0 ; i < p->nbTokens ; i++){
-		cdfa__free_automaton(p->tokenAutomatons[i]);
-	}
-
-	free(p->tokenAutomatons);
-	lrGrammarFree(p->grammar);
-	lrTransitionMatrixFree(p->transition);
-	free(p);
-}
-
-
 int lrParserSplitNextWord(LRParser *  parser,
 						  const char * str,
 						  unsigned * out_wordBegin, unsigned * out_wordEnd,
@@ -212,9 +137,11 @@ int lrParserNextToken(LRParser * parser, const char ** cursor, unsigned * out_to
 	return EXIT_SUCCESS;
 }
 
+LRParseTree * lrParseTreeNew(const unsigned maxNbSons);
 
-LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
+LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str, const char ** outputErrorMessage)
 {
+	*outputErrorMessage = NULL; /* TODO: fill error message */
 	LRGrammar * grammar = parser->grammar;
 	LRTransitionMatrix * transitions = parser->transition;
 
@@ -271,7 +198,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 			tmp = lrParseTreeNew(0);
 			tmp->isLeaf = 1;
-			tmp->leaf.tokenId = currentTokenId;
+			tmp->symbolId = currentTokenId;
 			tmp->leaf.tokenData = currentTokenData;
 
 			treeStack[treeStackSize++] = tmp;
@@ -305,7 +232,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 			tmp->node.sons[j] = treeStack[treeStackSize-ruleSize + j];
 		}
 
-		tmp->node.nonTerminalId = grammar->leftRules[action];
+		tmp->symbolId = grammar->leftRules[action];
 		tmp->node.ruleId = action;
 
 		stateStackSize -= ruleSize;
@@ -317,9 +244,9 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 		treeStack[treeStackSize++] = tmp;
 	}
 
-	if (treeStackSize != 2 || treeStack[1]->isLeaf != 1 || treeStack[1]->leaf.tokenId != endOfFileToken){
+	if (treeStackSize != 2 || treeStack[1]->isLeaf != 1 || treeStack[1]->symbolId != endOfFileToken){
 		for (unsigned i = 0 ; i < treeStackSize ; i++){
-			lrParseTreeFree(treeStack[i]);
+			lrParseTreeFree(parser, treeStack[i]);
 		}
 		free(treeStack);
 		free(stateStack);
@@ -328,7 +255,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 	LRParseTree * output = treeStack[0];
 
-	lrParseTreeFree(treeStack[1]);
+	lrParseTreeFree(parser, treeStack[1]);
 	free(treeStack);
 	free(stateStack);
 
@@ -337,15 +264,16 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str)
 
 
 
-LRParseTree * lrParserParseFile(LRParser * parser, const char * const filePath)
+LRParseTree * lrParserParseFile(LRParser * const parser, const char * const filePath, const char ** outputErrorMessage)
 {
+	*outputErrorMessage = NULL; /* TODO: fill error message */
 	char * buffer = lrLoadFile(filePath);
 
 	if (buffer == NULL){
 		return NULL;
 	}
 
-	LRParseTree * output = lrParserParseStr(parser, buffer);
+	LRParseTree * output = lrParserParseStr(parser, buffer, outputErrorMessage);
 
 	free(buffer);
 

@@ -212,7 +212,18 @@ static int separateLeftRight(unsigned nbLines, char ** lines, char * sep, char *
 lrFileConfig * lrFileConfigParse(const char * const path)
 {
 	lrFileConfig * output = malloc(sizeof(lrFileConfig));
+
+	if (output == NULL){
+		return NULL;
+	}
+
 	char * buff = lrLoadFile(path);
+
+	if (buff == NULL){
+		free(output);
+		return NULL;
+	}
+
 
 	unsigned nbTokenLines;
 	char ** tokenLines;
@@ -272,6 +283,17 @@ lrFileConfig * lrFileConfigParse(const char * const path)
 
 	return output;
 }
+
+void lrFileConfigFree(lrFileConfig * conf)
+{
+	free(conf->ruleRightMemberSizes);
+	free(conf->ruleRightMembers);
+	free(conf->ruleLeftMembers);
+	free(conf->tokenNames);
+	free(conf->tokenRegexp);
+	free(conf);
+}
+
 
 
 void lrFileConfigPrint(lrFileConfig * descr)

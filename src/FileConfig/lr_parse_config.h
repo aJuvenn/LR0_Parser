@@ -30,5 +30,6 @@ lrFileConfig * lrFileConfigParse(const char * const path);
 
 void lrFileConfigPrint(lrFileConfig * descr);
 
+void lrFileConfigFree(lrFileConfig * conf);
 
 #endif /* PARSE_CONFIG_H_ */
