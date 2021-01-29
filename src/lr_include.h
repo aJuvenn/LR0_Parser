@@ -17,11 +17,12 @@
 #include "cdfa/cdfa.h"
 
 #include "Utils/lr_utils.h"
-#include "FileConfig/lr_parse_config.h"
+#include "ParserConfig/lr_parser_config.h"
 #include "Grammar/lr_grammar.h"
 #include "TransitionTable/lr_node.h"
 #include "TransitionTable/lr_transition_matrix.h"
 #include "Parser/lr_parser_structure.h"
 #include "../lr_parser.h"
+#include "../lr_parser_utils.h"
 
 #endif /* LR_INCLUDE_H_ */

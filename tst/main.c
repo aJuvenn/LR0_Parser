@@ -13,7 +13,7 @@
 
 int main(int argc, char **argv)
 {
-	char * configPath = "funl_grammar.txt";
+	char * configPath = "new_funl_grammar.txt";
 	const char * errorMessage;
 
 	printf("Creating parser from %s...\n", configPath);

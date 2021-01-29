@@ -14,5 +14,4 @@
 char * lrLoadFile(const char * const path);
 
 
-
 #endif /* UTILS_LR_UTILS_H_ */

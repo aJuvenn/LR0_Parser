@@ -279,3 +279,28 @@ LRParseTree * lrParserParseFile(LRParser * const parser, const char * const file
 
 	return output;
 }
+
+
+typedef void * (LRParsingFunction)(LRParser * const parser, unsigned symbolId, int isTerminal,
+		char * symbolString, unsigned ruleId, void ** values, int create);
+
+
+void * lrParserApplyFuncToParseTree(LRParser * const parser, const LRParseTree * const tree)
+{
+	if (tree->isLeaf){
+		/* TODO: change grammar symbol id convention to avoid this "-nbNonTerminal" */
+		return parser->parsingFunction(parser, tree->symbolId - parser->grammar->nbNonTerminal, 1, tree->leaf.tokenData, 0, NULL, 0);
+	}
+
+	unsigned nbSons = tree->node.nbSons;
+	void * sonsValues[nbSons];
+
+	for (unsigned i = 0 ; i < nbSons ; i++){
+		sonsValues[i] = lrParserApplyFuncToParseTree(parser, tree->node.sons[i]);
+	}
+
+	return parser->parsingFunction(parser, 0, 0, NULL, tree->node.ruleId, sonsValues, 0);
+}
+
+
+

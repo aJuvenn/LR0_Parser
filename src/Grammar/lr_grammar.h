@@ -22,15 +22,15 @@ typedef struct
 	unsigned * leftRules;
 	unsigned * rightRuleSizes;
 	unsigned ** rightRules;
+	char ** ruleNames;
 
 } LRGrammar;
 
 
 
-LRGrammar * lrGrammarFromDescr(lrFileConfig * descr);
+LRGrammar * lrGrammarFromConfig(LRConfig * config);
 void lrGrammarFree(LRGrammar * g);
 
-void lrGrammarPrintRule(const LRGrammar * const g, const unsigned ruleId);
 void lrGrammarPrint(const LRGrammar * const g);
 
 

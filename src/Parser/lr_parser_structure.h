@@ -32,7 +32,15 @@ struct LRParseTree
 
 };
 
-struct LRParser {
+struct LRParser;
+typedef void * (LRParsingFunction)(struct LRParser * const parser, unsigned symbolId, int isTerminal,
+		char * symbolString, unsigned ruleId, void ** values, int create);
+
+struct LRParser
+{
+	LRParsingFunction * parsingFunction;
+	LRTmpConfig * tmpConfig;
+	LRConfig * config;
 
 	unsigned nbTokens;
 	unsigned skippedAutomatonId;
@@ -40,7 +48,6 @@ struct LRParser {
 
 	LRGrammar * grammar;
 	LRTransitionMatrix * transition;
-
 };
 
 

@@ -1,17 +1,21 @@
-#
-    Tis is a comment
-#
-
-let rec splitintwo
-    #
-        Comment is skipped
-    #
-	fun (l l1 l2)
-		if (isempty l)
-			(cons l1 l2)
-		else
-			(splitintwo (tail l) l2 (cons (head l) l1))
-		end
+type Bool
+	| True
+	| False
 ;
 
-# ok #
+type IntList
+	| Nil
+	| {Cons Int IntList}
+;
+
+let (isempty l)
+	switch l
+		| Nil -> True
+		| {Cons a b} -> False
+		| _ -> False 
+	end
+;
+
+let (main)
+	(isempty {Cons True Nil})
+;

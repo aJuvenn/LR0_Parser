@@ -46,19 +46,19 @@ void lrParseTreePrintRec(const LRParser * const parser, const LRParseTree * cons
 	}
 
 	if (tree->isLeaf){
-		printf("%s\n", tree->leaf.tokenData);
+		printf("%s {symbolId: %u}\n", tree->leaf.tokenData, tree->symbolId);
 		return;
 	}
 
 	unsigned ruleId = tree->node.ruleId;
 
-	printf("%s -> ", g->symbolNames[g->leftRules[ruleId]]);
+	printf("%s {symbolId: %u} -> ", g->symbolNames[g->leftRules[ruleId]], tree->symbolId);
 
 	for (unsigned j = 0 ; j < g->rightRuleSizes[ruleId] ; j++){
 		printf("%s ", g->symbolNames[g->rightRules[ruleId][j]]);
 	}
 
-	printf("\n");
+	printf("{ruleId: %u}\n", ruleId);
 
 	for (unsigned i = 0 ; i < tree->node.nbSons ; i++){
 		for (unsigned j = 0 ; j < indent+1 ; j++){
@@ -87,6 +87,8 @@ LRSymbolId lrParseTreeGetSymbolId(const LRParser * const parser, const LRParseTr
 	return (LRSymbolId) tree->symbolId;
 }
 
+
+const char * lrParserGetSymbolName(const LRParser * const parser, const LRSymbolId symbolId);
 const char * lrParseTreeGetSymbolName(const LRParser * const parser, const LRParseTree * const tree)
 {
 	return lrParserGetSymbolName(parser, tree->symbolId);
@@ -108,6 +110,7 @@ LRRuleId lrParseTreeGetRuleId(const LRParser * const parser, const LRParseTree *
 	return tree->node.ruleId;
 }
 
+#if 0
 const char * lrParseTreeGetRuleName(const LRParser * const parser, const LRParseTree * const tree)
 {
 	if (tree->isLeaf){
@@ -115,7 +118,7 @@ const char * lrParseTreeGetRuleName(const LRParser * const parser, const LRParse
 	}
 	return lrParserGetRuleName(parser, tree->node.ruleId);
 }
-
+#endif
 unsigned lrParseTreeGetNbSons(const LRParser * const parser, const LRParseTree * const tree)
 {
 	if (tree->isLeaf){
