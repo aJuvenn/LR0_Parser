@@ -14,6 +14,9 @@
 #include <regex.h>
 #include <ctype.h>
 
+#include "../lr_parser.h"
+#include "../lr_parser_utils.h"
+
 #include "cdfa/cdfa.h"
 
 #include "Utils/lr_utils.h"
@@ -22,7 +25,5 @@
 #include "TransitionTable/lr_node.h"
 #include "TransitionTable/lr_transition_matrix.h"
 #include "Parser/lr_parser_structure.h"
-#include "../lr_parser.h"
-#include "../lr_parser_utils.h"
 
 #endif /* LR_INCLUDE_H_ */

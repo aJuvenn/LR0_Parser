@@ -156,7 +156,7 @@ void lrTransitionMatrixFillReduce(const LRGrammar * const grammar, LRTransitionM
 		}
 
 		if (fillState){
-			for (unsigned j = grammar->nbNonTerminal ; j < transitionMatrix->nbSymbols ; j++){
+			for (unsigned j = 0 ; j < grammar->nbTerminals ; j++){
 				transitionMatrix->transitions[j + transitionMatrix->nbSymbols * i] = -(savedRuleId + 1);
 			}
 		}

@@ -178,7 +178,54 @@ FLExpr * flExprNewEmptySwitch(unsigned nbCases)
 	return NULL;
 }
 
+void flExprFree(FLExpr * expr)
+{
+	switch (expr->kind){
 
+	case FL_EXPR_VAR:
+		free(expr->varName);
+		break;
+
+	case FL_EXPR_CALL:
+		flExprFree(expr->call.func);
+		for (unsigned i = 0 ; i < expr->call.nbArgs ; i++){
+			flExprFree(expr->call.args[i]);
+		}
+		free(expr->call.args);
+		break;
+
+	case FL_EXPR_CONSTR:
+		free(expr->constr.constrName);
+		for (unsigned i = 0 ; i < expr->constr.nbArgs ; i++){
+			flExprFree(expr->constr.args[i]);
+		}
+		free(expr->constr.args);
+		break;
+
+	case FL_EXPR_SWITCH:
+		for (unsigned i = 0 ; i < expr->switching.nbCases ; i++){
+			free(expr->switching.caseConstrNames[i]);
+			for (unsigned j = 0 ; j < expr->switching.caseNbArgs[i] ; j++){
+				free(expr->switching.caseArgNames[i][j]);
+			}
+			free(expr->switching.caseArgNames[i]);
+			flExprFree(expr->switching.caseReturns[i]);
+		}
+		free(expr->switching.caseArgNames);
+		free(expr->switching.caseReturns);
+		free(expr->switching.caseConstrNames);
+		free(expr->switching.caseNbArgs);
+		flExprFree(expr->switching.toEvaluate);
+		flExprFree(expr->switching.defaultReturn);
+		break;
+
+
+	default:
+		break;
+	}
+
+	free(expr);
+}
 
 enum FLInstrKind
 {
@@ -285,6 +332,40 @@ FLInstr * flInstrNewEmptyTypeDef(char * typeName, unsigned nbConstrs)
 	return NULL;
 }
 
+void flInstrFree(FLInstr * instr)
+{
+	switch (instr->kind){
+
+	case FL_INSTR_LET:
+		free(instr->let.name);
+		for (unsigned i = 0 ; i < instr->let.nbArgs ; i++){
+			free(instr->let.args[i]);
+		}
+		free(instr->let.args);
+		flExprFree(instr->let.body);
+		break;
+
+	case FL_INSTR_TYPEDEF:
+		for (unsigned i = 0 ; i < instr->typeDef.nbConstrs ; i++){
+			free(instr->typeDef.constrNames[i]);
+			for (unsigned j = 0 ; j < instr->typeDef.constrNbArgs[i] ; j++){
+				free(instr->typeDef.constrArgTypes[i][j]);
+			}
+			free(instr->typeDef.constrArgTypes[i]);
+		}
+		free(instr->typeDef.typeName);
+		free(instr->typeDef.constrArgTypes);
+		free(instr->typeDef.constrNbArgs);
+		free(instr->typeDef.constrNames);
+		break;
+
+	default:
+		break;
+	}
+
+	free(instr);
+}
+
 
 typedef struct FLProgram
 {
@@ -313,7 +394,14 @@ FLProgram * flProgramNew(unsigned nbInstructions, FLInstr ** instructions)
 	return output;
 }
 
-
+void flProgramFree(FLProgram * prog)
+{
+	for (unsigned i = 0 ; i < prog->nbInstructions ; i++){
+		flInstrFree(prog->instructions[i]);
+	}
+	free(prog->instructions);
+	free(prog);
+}
 
 
 LR_PARSING_FUNCTION(flParsingFunction, {
@@ -330,66 +418,66 @@ LR_PARSING_FUNCTION(flParsingFunction, {
 		LR_SYMBOL(9, "}", "\\}", return NULL;)
 		LR_SYMBOL(10, ";", ";", return NULL;)
 		LR_SYMBOL(11, "_", "_", return NULL;)
-		LR_SYMBOL(12, "var", "[a-zA-Z_]([a-zA-Z0-9_]*)", return strdup(symbolString);)
+		LR_SYMBOL(12, "var", "[a-zA-Z_]([a-zA-Z0-9_]*)", return strdup(lrSymbol);)
 		LR_SYMBOL(13, "<SKIPPED>", "#((.-#)*)#", return NULL;)
 
 }, {
 
 		LR_RULE(0, "<START>", "ILIST <eof>", {
-				LRPointerArray * array = values[0];
+				LRPointerArray * array = lrValues[0];
 				FLProgram * prog = flProgramNew(array->nbElements, (void *) array->elements);
 				free(array);
 				return prog;
 		})
 
 		LR_RULE(1, "ILIST", "ILIST INSTR", {
-				lrPointerArrayPushBack(values[0], values[1]);
-				return values[0];
+				lrPointerArrayPushBack(lrValues[0], lrValues[1]);
+				return lrValues[0];
 		})
 
 		LR_RULE(2, "ILIST", "INSTR", {
 				LRPointerArray * array = lrPointerArrayNew(1);
-				lrPointerArrayPushBack(array, values[0]);
+				lrPointerArrayPushBack(array, lrValues[0]);
 				return array;
 		})
 
 		LR_RULE(3, "VLIST", "VLIST var", {
-				lrPointerArrayPushBack(values[0], values[1]);
-				return values[0];
+				lrPointerArrayPushBack(lrValues[0], lrValues[1]);
+				return lrValues[0];
 		})
 
 		LR_RULE(4, "VLIST", "var", {
 				LRPointerArray * array = lrPointerArrayNew(1);
-				lrPointerArrayPushBack(array, values[0]);
+				lrPointerArrayPushBack(array, lrValues[0]);
 				return array;
 		})
 
 		LR_RULE(5, "ELIST", "ELIST EXPR", {
-				lrPointerArrayPushBack(values[0], values[1]);
-				return values[0];
+				lrPointerArrayPushBack(lrValues[0], lrValues[1]);
+				return lrValues[0];
 		})
 
 		LR_RULE(6, "ELIST", "EXPR", {
 				LRPointerArray * array = lrPointerArrayNew(1);
-				lrPointerArrayPushBack(array, values[0]);
+				lrPointerArrayPushBack(array, lrValues[0]);
 				return array;
 		})
 
-		LR_RULE(7, "INSTR", "LET", return values[0];)
-		LR_RULE(8, "INSTR", "TYPEDEF", return values[0];)
+		LR_RULE(7, "INSTR", "LET", return lrValues[0];)
+		LR_RULE(8, "INSTR", "TYPEDEF", return lrValues[0];)
 
 		LR_RULE(9, "LET", "let ( VLIST ) EXPR ;", {
-				LRPointerArray * array = values[2];
+				LRPointerArray * array = lrValues[2];
 				char * name = lrPointerArrayPopFront(array);
-				FLInstr * instr = flInstrNewLet(name, array->nbElements, (void *) array->elements, values[4]);
+				FLInstr * instr = flInstrNewLet(name, array->nbElements, (void *) array->elements, lrValues[4]);
 				free(array);
 				return instr;
 		})
 
-		LR_RULE(10, "EXPR", "var", return flExprNewVar(values[0]);)
+		LR_RULE(10, "EXPR", "var", return flExprNewVar(lrValues[0]);)
 
 		LR_RULE(11, "EXPR", "( ELIST )", {
-				LRPointerArray * array = values[1];
+				LRPointerArray * array = lrValues[1];
 				FLExpr * func = lrPointerArrayPopFront(array);
 				FLExpr * expr = flExprNewCall(func, array->nbElements, (void *) array->elements);
 				free(array);
@@ -397,18 +485,18 @@ LR_PARSING_FUNCTION(flParsingFunction, {
 		})
 
 		LR_RULE(12, "EXPR", "{ var ELIST }", {
-				LRPointerArray * array = values[2];
-				FLExpr * expr = flExprNewConstr(values[1], array->nbElements, (void *) array->elements);
+				LRPointerArray * array = lrValues[2];
+				FLExpr * expr = flExprNewConstr(lrValues[1], array->nbElements, (void *) array->elements);
 				free(array);
 				return expr;
 		})
 
 		LR_RULE(13, "EXPR", "switch EXPR SWITCHLIST | _ -> EXPR end", {
-				LRPointerArray * array = values[2];
+				LRPointerArray * array = lrValues[2];
 				const unsigned nbCases = array->nbElements;
 				FLExpr * expr = flExprNewEmptySwitch(nbCases);
-				expr->switching.toEvaluate = values[1];
-				expr->switching.defaultReturn = values[6];
+				expr->switching.toEvaluate = lrValues[1];
+				expr->switching.defaultReturn = lrValues[6];
 
 				for (unsigned i = 0 ; i < nbCases ; i++){
 					LRPointerCouple * couple = array->elements[i];
@@ -422,26 +510,27 @@ LR_PARSING_FUNCTION(flParsingFunction, {
 					free(caseNameArray);
 					free(couple);
 				}
+				lrPointerArrayFree(array);
 				return expr;
 		})
 
 		LR_RULE(14, "SWITCHLIST", "SWITCHLIST | CONSTRDEF -> EXPR", {
-				LRPointerCouple * couple = lrPointerCoupleNew(values[2], values[4]);
-				lrPointerArrayPushBack(values[0], couple);
-				return values[0];
+				LRPointerCouple * couple = lrPointerCoupleNew(lrValues[2], lrValues[4]);
+				lrPointerArrayPushBack(lrValues[0], couple);
+				return lrValues[0];
 		})
 
 		LR_RULE(15, "SWITCHLIST", "| CONSTRDEF -> EXPR", {
 				LRPointerArray * array = lrPointerArrayNew(1);
-				LRPointerCouple * couple = lrPointerCoupleNew(values[1], values[3]);
+				LRPointerCouple * couple = lrPointerCoupleNew(lrValues[1], lrValues[3]);
 				lrPointerArrayPushBack(array, couple);
 				return array;
 		})
 
 		LR_RULE(16, "TYPEDEF", "type var TYPEDEFLIST ;", {
-				LRPointerArray * array = values[2];
+				LRPointerArray * array = lrValues[2];
 				unsigned nbConstr = array->nbElements;
-				FLInstr * instr = flInstrNewEmptyTypeDef(values[1], nbConstr);
+				FLInstr * instr = flInstrNewEmptyTypeDef(lrValues[1], nbConstr);
 
 				for (unsigned i = 0 ; i < nbConstr ; i++){
 					LRPointerArray * nameArray = array->elements[i];
@@ -456,23 +545,23 @@ LR_PARSING_FUNCTION(flParsingFunction, {
 		})
 
 		LR_RULE(17, "TYPEDEFLIST", "TYPEDEFLIST | CONSTRDEF", {
-				lrPointerArrayPushBack(values[0], values[2]);
-				return values[0];
+				lrPointerArrayPushBack(lrValues[0], lrValues[2]);
+				return lrValues[0];
 		})
 
 		LR_RULE(18, "TYPEDEFLIST", "| CONSTRDEF", {
 				LRPointerArray * array = lrPointerArrayNew(1);
-				lrPointerArrayPushBack(array, values[1]);
+				lrPointerArrayPushBack(array, lrValues[1]);
 				return array;
 		})
 
 		LR_RULE(19, "CONSTRDEF", "{ VLIST }", {
-				return values[1];
+				return lrValues[1];
 		})
 
 		LR_RULE(20, "CONSTRDEF", "var", {
 				LRPointerArray * array = lrPointerArrayNew(1);
-				lrPointerArrayPushBack(array, values[0]);
+				lrPointerArrayPushBack(array, lrValues[0]);
 				return array;
 		})
 })
@@ -481,6 +570,7 @@ LR_PARSING_FUNCTION(flParsingFunction, {
 int main(int argc, char * argv[])
 {
 	const char * errorMessage;
+	printf("Loading parser...\n");
 	LRParser * parser = lrParserNewFromFunc(flParsingFunction);
 
 	if (parser == NULL){
@@ -490,29 +580,20 @@ int main(int argc, char * argv[])
 
 	printf("Done. Printing parser...\n");
 	lrParserPrint(parser);
-	char * sourceFile = "source_file.txt";
+	char * sourceFile = "./tst/source_file.txt";
 	printf("Done. Parsing %s...\n", sourceFile);
-	LRParseTree * tree = lrParserParseFile(parser, sourceFile, &errorMessage);
-
-	if (tree == NULL){
-		fprintf(stderr, "Couldn't parse file\n");
-		exit(EXIT_FAILURE);
-	}
-
-	printf("Done. Printing parse tree...\n");
-	lrParseTreePrint(parser, tree);
-	printf("Done. Applying parsing function...\n");
-
-	FLProgram * parsedProgram = lrParserApplyFuncToParseTree(parser, tree);
+	FLProgram * parsedProgram = lrParserParseFile(parser, sourceFile, &errorMessage);
 
 	if (parsedProgram == NULL){
-		fprintf(stderr, "Couldn't apply parsing function\n");
+		fprintf(stderr, "Couldn't parse file\n");
 		exit(EXIT_FAILURE);
 	}
 
 	printf("Done. Printing program...\n");
 	flProgramPrint(parsedProgram);
 	printf("Done.\n");
+	lrParserFree(parser);
+	flProgramFree(parsedProgram);
 
 	return EXIT_SUCCESS;
 }

@@ -73,7 +73,7 @@ typedef struct LRConfig
 
 LRConfig * lrConfigNew(LRTmpConfig * tmpConfig);
 
-void lrConfigFree(LRConfig * tmpConfig);
+void lrConfigFree(LRConfig * config);
 
 int lrTmpConfigSortingAndVerification(LRTmpConfig * const tmpConfig);
 

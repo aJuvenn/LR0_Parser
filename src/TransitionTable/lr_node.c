@@ -79,7 +79,7 @@ int lrNodeAreEquals(const LRNode * const node1, const LRNode * const node2)
 
 static inline int isNonTerminal(const LRGrammar * const g, const unsigned symbol)
 {
-	return (symbol < g->nbNonTerminal);
+	return (symbol >= g->nbTerminals);
 }
 
 

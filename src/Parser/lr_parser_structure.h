@@ -12,7 +12,7 @@
 
 #define LR_PARSER_MAX_DEPTH 1024
 
-struct LRParseTree
+typedef struct LRParseTree
 {
 	int isLeaf;
 	unsigned symbolId;
@@ -30,13 +30,10 @@ struct LRParseTree
 		} leaf;
 	};
 
-};
+} LRParseTree;
 
-struct LRParser;
-typedef void * (LRParsingFunction)(struct LRParser * const parser, unsigned symbolId, int isTerminal,
-		char * symbolString, unsigned ruleId, void ** values, int create);
 
-struct LRParser
+typedef struct LRParser
 {
 	LRParsingFunction * parsingFunction;
 	LRTmpConfig * tmpConfig;
@@ -48,7 +45,11 @@ struct LRParser
 
 	LRGrammar * grammar;
 	LRTransitionMatrix * transition;
-};
+} LRParser;
+
+
+LRParseTree * lrParseTreeNew(const unsigned maxNbSons);
+void lrParseTreeFree(const LRParser * const parser, LRParseTree * tree);
 
 
 #endif /* LR_PARSER_STRUCTURE_H_ */

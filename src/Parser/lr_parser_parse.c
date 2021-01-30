@@ -109,7 +109,7 @@ int lrParserNextToken(LRParser * parser, const char ** cursor, unsigned * out_to
 		if (wordSize == 0){
 			/* End of file */
 			*cursor += wordEnd;
-			*out_tokenId = parser->grammar->nbSymbols - 1;
+			*out_tokenId = parser->grammar->nbTerminals - 1;
 			*out_tokenData = strdup("<eof>");
 			return EXIT_SUCCESS;
 		}
@@ -131,15 +131,14 @@ int lrParserNextToken(LRParser * parser, const char ** cursor, unsigned * out_to
 	tokenData[wordSize] = '\0';
 
 	*cursor += wordEnd;
-	*out_tokenId = (automatonId + parser->grammar->nbNonTerminal);
+	*out_tokenId = automatonId;
 	*out_tokenData = tokenData;
 
 	return EXIT_SUCCESS;
 }
 
-LRParseTree * lrParseTreeNew(const unsigned maxNbSons);
 
-LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str, const char ** outputErrorMessage)
+LRParseTree * lrParseTreeFromString(LRParser * const parser, const char * const str, const char ** outputErrorMessage)
 {
 	*outputErrorMessage = NULL; /* TODO: fill error message */
 	LRGrammar * grammar = parser->grammar;
@@ -170,7 +169,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str, 
 
 	unsigned currentTokenId;
 	char * currentTokenData;
-	const unsigned endOfFileToken = parser->grammar->nbSymbols - 1;
+	const unsigned endOfFileToken = parser->grammar->nbTerminals - 1;
 
 	int ret;
 
@@ -211,6 +210,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str, 
 
 			if (currentTokenId == endOfFileToken){
 				if (eofAlreadyEncountered){
+					free(currentTokenData);
 					break;
 				} else {
 					eofAlreadyEncountered = 1;
@@ -264,7 +264,7 @@ LRParseTree * lrParserParseStr(LRParser * const parser, const char * const str, 
 
 
 
-LRParseTree * lrParserParseFile(LRParser * const parser, const char * const filePath, const char ** outputErrorMessage)
+LRParseTree * lrParseTreeFromFile(LRParser * const parser, const char * const filePath, const char ** outputErrorMessage)
 {
 	*outputErrorMessage = NULL; /* TODO: fill error message */
 	char * buffer = lrLoadFile(filePath);
@@ -273,7 +273,7 @@ LRParseTree * lrParserParseFile(LRParser * const parser, const char * const file
 		return NULL;
 	}
 
-	LRParseTree * output = lrParserParseStr(parser, buffer, outputErrorMessage);
+	LRParseTree * output = lrParseTreeFromString(parser, buffer, outputErrorMessage);
 
 	free(buffer);
 
@@ -281,15 +281,10 @@ LRParseTree * lrParserParseFile(LRParser * const parser, const char * const file
 }
 
 
-typedef void * (LRParsingFunction)(LRParser * const parser, unsigned symbolId, int isTerminal,
-		char * symbolString, unsigned ruleId, void ** values, int create);
-
-
 void * lrParserApplyFuncToParseTree(LRParser * const parser, const LRParseTree * const tree)
 {
 	if (tree->isLeaf){
-		/* TODO: change grammar symbol id convention to avoid this "-nbNonTerminal" */
-		return parser->parsingFunction(parser, tree->symbolId - parser->grammar->nbNonTerminal, 1, tree->leaf.tokenData, 0, NULL, 0);
+		return parser->parsingFunction(parser, tree->symbolId, 1, tree->leaf.tokenData, 0, NULL, 0);
 	}
 
 	unsigned nbSons = tree->node.nbSons;
@@ -303,4 +298,25 @@ void * lrParserApplyFuncToParseTree(LRParser * const parser, const LRParseTree *
 }
 
 
+void * lrParserParseFile(LRParser * const parser, const char * const filePath, const char ** outputErrorMessage)
+{
+	LRParseTree * const tree = lrParseTreeFromFile(parser, filePath, outputErrorMessage);
+	if (tree == NULL){
+		return NULL;
+	}
+	void * output = lrParserApplyFuncToParseTree(parser, tree);
+	lrParseTreeFree(parser, tree);
+	return output;
+}
 
+
+void * lrParserParseString(LRParser * const parser, const char * const str, const char ** outputErrorMessage)
+{
+	LRParseTree * const tree = lrParseTreeFromString(parser, str, outputErrorMessage);
+	if (tree == NULL){
+		return NULL;
+	}
+	void * output = lrParserApplyFuncToParseTree(parser, tree);
+	lrParseTreeFree(parser, tree);
+	return output;
+}

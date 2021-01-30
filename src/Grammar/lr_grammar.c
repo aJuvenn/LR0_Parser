@@ -22,8 +22,6 @@ LRGrammar * lrGrammarNew(unsigned nbNonTerminals, unsigned nbTerminals, unsigned
 	output->leftRules = malloc(maxNbRules * sizeof(unsigned));
 	output->rightRuleSizes = malloc(maxNbRules * sizeof(unsigned));
 	output->rightRules = malloc(maxNbRules * sizeof(unsigned *));
-	output->ruleNames = malloc(maxNbRules * sizeof(char *));
-
 
 	return output;
 }
@@ -35,12 +33,10 @@ void lrGrammarFree(LRGrammar * g)
 
 	for (unsigned i = 0 ; i < g->nbRules ; i++){
 		free(g->rightRules[i]);
-		free(g->ruleNames[i]);
 	}
 
 	free(g->rightRules);
 	free(g->rightRuleSizes);
-	free(g->ruleNames);
 
 	for (unsigned i = 0 ; i < g->nbSymbols ; i++){
 		free(g->symbolNames[i]);
@@ -51,10 +47,17 @@ void lrGrammarFree(LRGrammar * g)
 }
 
 
-void lrGrammarPrint(const LRGrammar * const g)
+void lrGrammarPrint(const LRGrammar * const grammar)
 {
-	for (unsigned i = 0 ; i < g->nbRules ; i++){
-		printf("[%u] %s\n", i, g->ruleNames[i]);
+	for (unsigned i = 0 ; i < grammar->nbRules ; i++){
+		char * leftSymbol = grammar->symbolNames[grammar->leftRules[i]];
+		unsigned rightRuleSize = grammar->rightRuleSizes[i];
+		unsigned * rightRule = grammar->rightRules[i];
+		printf("[%u] %s ->", i, leftSymbol);
+		for (unsigned j = 0 ; j < rightRuleSize ; j++){
+			printf(" %s", grammar->symbolNames[rightRule[j]]);
+		}
+		printf("\n");
 	}
 }
 
@@ -82,42 +85,6 @@ unsigned strIndex(const char * const str, unsigned nbStrs, const char * const * 
 	return (unsigned) -1;
 }
 
-
-int lrGrammarFillRuleNames(LRGrammar * const grammar)
-{
-	unsigned nbSymbols = grammar->nbSymbols;
-
-	size_t symbolSizes[nbSymbols];
-
-	for (unsigned i = 0 ; i < nbSymbols ; i++){
-		symbolSizes[i] = strlen(grammar->symbolNames[i]);
-	}
-
-	for (unsigned i = 0 ; i < grammar->nbRules ; i++){
-		char * leftSymbol = grammar->symbolNames[grammar->leftRules[i]];
-		unsigned rightRuleSize = grammar->rightRuleSizes[i];
-		unsigned * rightRule = grammar->rightRules[i];
-
-		size_t ruleNameSize = strlen(leftSymbol) + 3 + 1;
-
-		for (unsigned j = 0 ; j < rightRuleSize ; j++){
-			ruleNameSize += 1 + symbolSizes[rightRule[j]];
-		}
-
-		char * ruleName = malloc(ruleNameSize);
-		ruleName[0] = 0;
-		strcat(ruleName, leftSymbol);
-		strcat(ruleName, " ->");
-		for (unsigned j = 0 ; j < rightRuleSize ; j++){
-			strcat(ruleName, " ");
-			strcat(ruleName, grammar->symbolNames[rightRule[j]]);
-		}
-
-		grammar->ruleNames[i] = ruleName;
-	}
-
-	return EXIT_SUCCESS;
-}
 
 
 LRGrammar * lrGrammarFromConfig(LRConfig * config)
@@ -158,7 +125,7 @@ LRGrammar * lrGrammarFromConfig(LRConfig * config)
 	for (unsigned i = 0 ; i < config->nbGrammarRules ; i++){
 
 		unsigned ruleSize =  config->grammarRules[i].nbRightMembers;
-		unsigned leftRuleIndex = strIndex(config->grammarRules[i].leftMember, nbNonTerminals, nonTerminals);
+		unsigned leftRuleIndex = nbTerminals + strIndex(config->grammarRules[i].leftMember, nbNonTerminals, nonTerminals);
 		unsigned * rightRuleIndexes = malloc(ruleSize * sizeof(unsigned));
 
 		for (unsigned j = 0 ; j <  ruleSize ; j++){
@@ -172,7 +139,8 @@ LRGrammar * lrGrammarFromConfig(LRConfig * config)
 					fprintf(stderr, "Unknown term %s in grammar rule\n", rightTerm);
 					return NULL;
 				}
-				index += nbNonTerminals;
+			} else {
+				index += nbTerminals;
 			}
 			rightRuleIndexes[j] = index;
 		}
@@ -180,15 +148,13 @@ LRGrammar * lrGrammarFromConfig(LRConfig * config)
 		lrGrammarAddRule(output, leftRuleIndex, ruleSize, rightRuleIndexes);
 	}
 
-	for (unsigned i = 0 ; i < nbNonTerminals ; i++){
-		output->symbolNames[i] = strdup(nonTerminals[i]);
-	}
-
 	for (unsigned i = 0 ; i < nbTerminals ; i++){
-		output->symbolNames[i + nbNonTerminals] = strdup(terminals[i]);
+		output->symbolNames[i] = strdup(terminals[i]);
 	}
 
-	lrGrammarFillRuleNames(output);
+	for (unsigned i = 0 ; i < nbNonTerminals ; i++){
+		output->symbolNames[i + nbTerminals] = strdup(nonTerminals[i]);
+	}
 
 	return output;
 }

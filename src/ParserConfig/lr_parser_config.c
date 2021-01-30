@@ -211,9 +211,18 @@ LRConfig * lrConfigNew(LRTmpConfig * tmpConfig)
 
 
 
-void lrConfigFree(LRConfig * tmpConfig)
+void lrConfigFree(LRConfig * config)
 {
-	/* TODO */
+	for (unsigned i = 0 ; i < config->nbGrammarRules ; i++){
+		for (unsigned j = 0 ; j < config->grammarRules[i].nbRightMembers ; j++){
+			free(config->grammarRules[i].rightMembers[j]);
+		}
+		free(config->grammarRules[i].rightMembers);
+	}
+
+	free(config->grammarRules);
+	free(config->tokens);
+	free(config);
 }
 
 
